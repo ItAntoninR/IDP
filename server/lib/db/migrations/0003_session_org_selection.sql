@@ -1,0 +1,1 @@
+ALTER TABLE "session" ADD COLUMN "organization_selected_at" timestamp;
