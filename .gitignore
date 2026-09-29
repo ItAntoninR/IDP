@@ -1,0 +1,16 @@
+node_modules/
+dist/
+web/dist/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+.nuxt/
+.output/
+.data/
+*.tsbuildinfo
+.claude/
+packages/
+examples/
+DECISIONS.md

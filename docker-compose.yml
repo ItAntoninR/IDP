@@ -1,0 +1,77 @@
+name: auth-service
+
+x-authentik: &authentik
+  image: authentik/server:2026.8.3
+  restart: unless-stopped
+  shm_size: 512mb
+  depends_on:
+    authentik-db:
+      condition: service_healthy
+  environment: &authentik-env
+    AUTHENTIK_SECRET_KEY: local-dev-only-authentik-secret-key-change-me
+    AUTHENTIK_POSTGRESQL__HOST: authentik-db
+    AUTHENTIK_POSTGRESQL__NAME: authentik
+    AUTHENTIK_POSTGRESQL__USER: authentik
+    AUTHENTIK_POSTGRESQL__PASSWORD: authentik
+    AUTHENTIK_BOOTSTRAP_EMAIL: admin@authentik.local
+    AUTHENTIK_BOOTSTRAP_PASSWORD: authentik-admin-123
+    AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+    AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+    AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
+  volumes:
+    - ./docker/authentik/blueprints:/blueprints/custom:ro
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
+  authentik-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: authentik
+      POSTGRES_DB: authentik
+    volumes:
+      - authentik-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik -d authentik"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  authentik-server:
+    <<: *authentik
+    command: server
+    ports:
+      - "9000:9000"
+
+  authentik-worker:
+    <<: *authentik
+    command: worker
+
+volumes:
+  pgdata:
+  authentik-db:
