@@ -18,13 +18,13 @@ const loading = ref(false);
 
 async function decide(accept: boolean) {
   loading.value = true;
-  const res = await authClient.$fetch<{ url?: string }>("/oauth2/consent", {
+  const res = await authClient.$fetch<{ url?: string; redirect?: boolean }>("/oauth2/consent", {
     method: "POST",
     body: { accept, oauth_query: window.location.search.slice(1) },
   });
   loading.value = false;
   if (res.error) return (error.value = errorMessage(res.error));
-  if (res.data?.url) window.location.href = res.data.url;
+  if (res.data?.url && !res.data.redirect) window.location.href = res.data.url;
 }
 </script>
 

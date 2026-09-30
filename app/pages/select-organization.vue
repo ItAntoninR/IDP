@@ -26,12 +26,12 @@ const description = computed(() =>
 );
 
 async function continueAuthorization() {
-  const res = await authClient.$fetch<{ url?: string }>("/oauth2/continue", {
+  const res = await authClient.$fetch<{ url?: string; redirect?: boolean }>("/oauth2/continue", {
     method: "POST",
     body: { postLogin: true, oauth_query: window.location.search.slice(1) },
   });
   if (res.error) throw res.error;
-  if (res.data?.url) window.location.href = res.data.url;
+  if (res.data?.url && !res.data.redirect) window.location.href = res.data.url;
 }
 
 async function choose(organizationId: string) {
