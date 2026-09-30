@@ -27,7 +27,7 @@ export interface AuthorizeResult {
 export async function authorize(
   user: Agent,
   client: SeededClient,
-  opts: { resource?: string | string[]; scope?: string; redirectUri?: string } = {},
+  opts: { resource?: string | string[]; scope?: string; redirectUri?: string; prompt?: string } = {},
 ) {
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash("sha256").update(verifier).digest());
@@ -41,6 +41,7 @@ export async function authorize(
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
+  if (opts.prompt) params.set("prompt", opts.prompt);
   const resources = opts.resource === undefined ? [client.resource] : [opts.resource].flat();
   for (const r of resources) params.append("resource", r);
 

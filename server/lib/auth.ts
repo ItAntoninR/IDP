@@ -258,6 +258,10 @@ export const auth = betterAuth({
       clientPrivileges: isAdminUser,
       resourcePrivileges: isAdminUser,
       customAccessTokenClaims: buildAccessTokenClaims,
+      selectAccount: {
+        page: "/select-organization",
+        shouldRedirect: () => false,
+      },
       postLogin: {
         page: "/select-organization",
         shouldRedirect: needsOrganizationSelection,

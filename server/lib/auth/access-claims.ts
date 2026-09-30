@@ -9,6 +9,7 @@ export const ACCESS_CLAIM = `${env.CLAIMS_NAMESPACE}/access`;
 export const IMPERSONATED_BY_CLAIM = `${env.CLAIMS_NAMESPACE}/impersonated_by`;
 export const ORGANIZATION_CLAIM = `${env.CLAIMS_NAMESPACE}/org_id`;
 export const ORGANIZATION_NAME_CLAIM = `${env.CLAIMS_NAMESPACE}/org_name`;
+export const ORGANIZATION_COUNT_CLAIM = `${env.CLAIMS_NAMESPACE}/org_count`;
 
 export type AccessMap = Record<string, string[]>;
 
@@ -125,6 +126,7 @@ export async function buildAccessTokenClaims(info: {
     [ACCESS_CLAIM]: { [organizationId]: permissions },
     [ORGANIZATION_CLAIM]: organizationId,
     [ORGANIZATION_NAME_CLAIM]: organization?.name ?? null,
+    [ORGANIZATION_COUNT_CLAIM]: granting.length,
     name: user?.name ?? null,
     email: user?.email ?? null,
   };

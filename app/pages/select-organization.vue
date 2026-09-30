@@ -12,7 +12,9 @@ useHead({ title: "Choisir une organisation" });
 const route = useRoute();
 const { context, switchOrganization } = useAccountContext();
 const oauth = isOAuthFlow();
-const resource = oauth ? new URLSearchParams(window.location.search).get("resource") : null;
+const oauthParams = new URLSearchParams(window.location.search);
+const resource = oauth ? oauthParams.get("resource") : null;
+const explicitChoice = oauth && (oauthParams.get("prompt") ?? "").split(" ").includes("select_account");
 
 const orgs = ref<MyOrganization[] | null>(null);
 const appLabel = ref<string | null>(null);
@@ -28,7 +30,10 @@ const description = computed(() =>
 async function continueAuthorization() {
   const res = await authClient.$fetch<{ url?: string; redirect?: boolean }>("/oauth2/continue", {
     method: "POST",
-    body: { postLogin: true, oauth_query: window.location.search.slice(1) },
+    body: {
+      ...(explicitChoice ? { selected: true } : { postLogin: true }),
+      oauth_query: window.location.search.slice(1),
+    },
   });
   if (res.error) throw res.error;
   if (res.data?.url && !res.data.redirect) window.location.href = res.data.url;
@@ -54,7 +59,7 @@ onMounted(async () => {
     });
     orgs.value = res.organizations;
     appLabel.value = res.app?.label ?? null;
-    if (oauth && res.organizations.length === 1) await choose(res.organizations[0]!.id);
+    if (oauth && !explicitChoice && res.organizations.length === 1) await choose(res.organizations[0]!.id);
   } catch (e) {
     error.value = errorMessage((e as { data?: unknown }).data ?? e);
   }
@@ -64,7 +69,7 @@ onMounted(async () => {
 <template>
   <AuthCard title="Choisissez une organisation" :description="description">
     <FormAlert :message="error" />
-    <PageLoader v-if="!orgs || (oauth && orgs.length === 1)" />
+    <PageLoader v-if="!orgs || (oauth && !explicitChoice && orgs.length === 1)" />
     <p v-else-if="!orgs.length" class="text-muted-foreground text-center text-sm">
       {{ appLabel ? `Aucune de vos organisations ne vous donne accès à ${appLabel}.` : "Vous n'appartenez à aucune organisation." }}
     </p>
@@ -76,9 +81,7 @@ onMounted(async () => {
         class="hover:bg-accent flex w-full cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors disabled:opacity-60"
         @click="choose(org.id)"
       >
-        <span class="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg border font-semibold">
-          {{ org.name[0]?.toUpperCase() }}
-        </span>
+        <OrgLogo :name="org.name" :logo-url="org.logoUrl" class="size-10" />
         <span class="min-w-0 flex-1">
           <span class="block truncate font-medium">{{ org.name }}</span>
           <span class="text-muted-foreground text-xs">
@@ -86,7 +89,7 @@ onMounted(async () => {
           </span>
         </span>
         <LoaderCircle v-if="pending === org.id" class="text-muted-foreground size-4 animate-spin" />
-        <Check v-else-if="!oauth && context?.active?.id === org.id" class="size-4" />
+        <Check v-else-if="(!oauth || explicitChoice) && context?.active?.id === org.id" class="size-4" />
         <ChevronRight v-else class="text-muted-foreground size-4" />
       </button>
     </div>

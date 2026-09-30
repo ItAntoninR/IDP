@@ -200,6 +200,7 @@ Les jetons d'accès sont des JWT signés en ES256.
 | `exp` / `iat` | Durée de vie de 10 minutes par défaut. |
 | `https://mondomaine.fr/org_id` | L'**unique** organisation pour laquelle ce jeton agit, choisie par l'utilisateur pendant l'autorisation. |
 | `https://mondomaine.fr/org_name` | Nom de cette organisation. Un changement de nom apparaît au prochain renouvellement du jeton. |
+| `https://mondomaine.fr/org_count` | Nombre d'organisations de l'utilisateur qui donnent accès à **cette** application. Au-dessus de 1, l'application peut proposer de changer d'organisation. |
 | `https://mondomaine.fr/access` | Objet `{ "<orgId>": ["access", "export", ...] }` avec une seule entrée, l'organisation `org_id` : les permissions de l'utilisateur sur **cette** application dans cette organisation, après intersection des permissions de ses rôles avec les applications autorisées pour l'organisation. |
 | `https://mondomaine.fr/impersonated_by` | Identifiant de l'administrateur. Présent uniquement pendant une impersonation. |
 
@@ -218,6 +219,7 @@ Exemple de contenu pour le Data hub :
   "exp": 1790600600,
   "https://mondomaine.fr/org_id": "org_acme",
   "https://mondomaine.fr/org_name": "Acme",
+  "https://mondomaine.fr/org_count": 1,
   "https://mondomaine.fr/access": {
     "org_acme": ["access", "export", "admin"]
   }
@@ -227,6 +229,7 @@ Exemple de contenu pour le Data hub :
 Garanties :
 
 - **Une organisation par jeton** : un utilisateur membre de plusieurs organisations en choisit une à chaque autorisation (`/select-organization`, qui ne liste que les organisations donnant accès à l'application demandée et se passe d'elle-même s'il n'y en a qu'une). Les jetons de renouvellement gardent cette organisation. Les données de deux clients ne peuvent donc jamais se mélanger dans une même session d'application ; pour changer d'organisation, l'application relance l'autorisation.
+- **Forcer le choix de l'organisation** : une application ajoute `prompt=select_account` à la demande d'autorisation (bouton « Changer d'organisation »). La page de choix s'affiche alors toujours, même si l'utilisateur n'a qu'une seule organisation.
 - **Pas d'accès, pas de jeton** : si aucune organisation ne donne `access` à l'application demandée, l'endpoint de jeton répond `403 access_denied` et n'émet rien. C'est vrai aussi au renouvellement : retirer un membre, changer un rôle, réduire les applications autorisées d'une organisation ou suspendre un utilisateur prend effet en une durée de vie de jeton d'accès.
 - **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé.
 - **Sessions d'impersonation** : jamais de jeton de renouvellement.

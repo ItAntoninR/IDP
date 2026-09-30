@@ -7,6 +7,7 @@ import {
   buildAccessTokenClaims,
   IMPERSONATED_BY_CLAIM,
   ORGANIZATION_CLAIM,
+  ORGANIZATION_COUNT_CLAIM,
   ORGANIZATION_NAME_CLAIM,
 } from "../server/lib/auth/access-claims";
 import { seedClients } from "../server/lib/oauth/clients";
@@ -206,6 +207,7 @@ describe("access tokens", () => {
     const payload = decodeJwt(res.body.access_token);
     expect(payload[ACCESS_CLAIM]).toEqual({ [second.organizationId]: ["access"] });
     expect(payload[ORGANIZATION_CLAIM]).toBe(second.organizationId);
+    expect(payload[ORGANIZATION_COUNT_CLAIM]).toBe(2);
 
     const refreshed = await agent()
       .post("/api/auth/oauth2/token")
@@ -214,6 +216,30 @@ describe("access tokens", () => {
       .send({ grant_type: "refresh_token", refresh_token: res.body.refresh_token, resource: DATAHUB });
     expect(refreshed.status, JSON.stringify(refreshed.body)).toBe(200);
     expect(decodeJwt(refreshed.body.access_token)[ORGANIZATION_CLAIM]).toBe(second.organizationId);
+  });
+
+  it("shows the organization choice when the app asks for it, even with a single organization", async () => {
+    const clients = await seedTestClients();
+    const { owner, organizationId } = await setupOrgWithOwner(["datahub"]);
+
+    const direct = await authorize(owner, clients.datahub);
+    expect(direct.code).toBeTruthy();
+
+    const auth = await authorize(owner, clients.datahub, { prompt: "select_account" });
+    expect(auth.code).toBeUndefined();
+    expect(auth.location).toContain("/select-organization");
+    const oauthQuery = new URL(auth.location, "http://x").search.slice(1);
+    expect(new URLSearchParams(oauthQuery).get("prompt")).toBe("select_account");
+
+    await owner.post("/api/auth/organization/set-active").send({ organizationId }).expect(200);
+    const cont = await owner.post("/api/auth/oauth2/continue").send({ selected: true, oauth_query: oauthQuery });
+    expect(cont.status, JSON.stringify(cont.body)).toBe(200);
+    const code = new URL(cont.body.url).searchParams.get("code")!;
+    const res = await exchangeCode(clients.datahub, { code, verifier: auth.verifier, redirectUri: auth.redirectUri });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const payload = decodeJwt(res.body.access_token);
+    expect(payload[ORGANIZATION_CLAIM]).toBe(organizationId);
+    expect(payload[ORGANIZATION_COUNT_CLAIM]).toBe(1);
   });
 
   it("refuses to pick an organization on the user's behalf", async () => {
