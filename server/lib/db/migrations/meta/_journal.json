@@ -50,6 +50,13 @@
       "when": 1790672669534,
       "tag": "0006_passkey",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790683098743,
+      "tag": "0007_known_devices",
+      "breakpoints": true
     }
   ]
 }

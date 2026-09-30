@@ -57,6 +57,13 @@ export async function waitForEmail(
   throw new Error(`No email received for ${to}`);
 }
 
+export async function countEmails(to: string, subject: RegExp, settleMs = 700): Promise<number> {
+  await new Promise((r) => setTimeout(r, settleMs));
+  const res = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${to}"`)}&limit=50`);
+  const body = (await res.json()) as { messages: MailpitSummary[] };
+  return body.messages.filter((m) => subject.test(m.Subject)).length;
+}
+
 export function extractLink(text: string): { url: URL; path: string } {
   const m = text.match(/https?:\/\/\S+/);
   if (!m) throw new Error("No link found in email");

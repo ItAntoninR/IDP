@@ -24,6 +24,7 @@ import { afterHook, beforeHook } from "./auth/hooks";
 import { impersonationClaim } from "./auth/impersonation";
 import { twoFactorTokenGuard } from "./auth/two-factor-policy";
 import { authentikUserInfo } from "./auth/authentik";
+import { alertOnTwoFactorChange, notifyPasswordChanged } from "./auth/security-alerts";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "./auth/invitations";
 import { buildAccessTokenClaims } from "./auth/access-claims";
 import { APPS } from "./apps";
@@ -55,6 +56,7 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       sendEmailInBackground(user.email, resetPasswordTemplate(url));
     },
+    onPasswordReset: async ({ user }) => notifyPasswordChanged(user.email),
   },
 
   emailVerification: {
@@ -112,6 +114,9 @@ export const auth = betterAuth({
 
   databaseHooks: {
     user: {
+      update: {
+        after: async (user, ctx) => alertOnTwoFactorChange(user as { email: string; twoFactorEnabled?: boolean | null }, ctx?.path),
+      },
       create: {
         before: async (user, ctx) => {
           await assertSignupAllowed(user, ctx);

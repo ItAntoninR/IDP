@@ -5,6 +5,7 @@ import { and, count, eq, sql } from "drizzle-orm";
 import { db, schema } from "../db/index";
 import type { HookContext } from "./hook-context";
 import { impersonatorOf } from "./impersonation";
+import { alertOnPasskeyChange } from "./security-alerts";
 
 export async function organizationsRequiringTwoFactor(userId: string) {
   return db
@@ -73,10 +74,13 @@ export const twoFactorTokenGuard = () =>
 export async function syncHasPasskey(ctx: HookContext) {
   if (ctx.path !== "/passkey/verify-registration" && ctx.path !== "/passkey/delete-passkey") return;
   if (ctx.context.returned instanceof Error) return;
-  const userId = (await getSessionFromCtx(ctx))?.user.id;
-  if (!userId) return;
-  const [row] = await db.select({ n: count() }).from(schema.passkey).where(eq(schema.passkey.userId, userId));
-  await db.update(schema.user).set({ hasPasskey: (row?.n ?? 0) > 0 }).where(eq(schema.user.id, userId));
+  const user = (await getSessionFromCtx(ctx))?.user;
+  if (!user) return;
+  const [row] = await db.select({ n: count() }).from(schema.passkey).where(eq(schema.passkey.userId, user.id));
+  await db.update(schema.user).set({ hasPasskey: (row?.n ?? 0) > 0 }).where(eq(schema.user.id, user.id));
+  const added = ctx.path === "/passkey/verify-registration";
+  const name = added ? (ctx.context.returned as { name?: string | null } | undefined)?.name : null;
+  alertOnPasskeyChange(user.email, added ? "added" : "removed", name);
 }
 
 const USER_VERIFIED = 0x04;

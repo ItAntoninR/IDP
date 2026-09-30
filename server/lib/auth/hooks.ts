@@ -4,6 +4,7 @@ import { stripOfflineAccessWhenImpersonating } from "./impersonation";
 import { markOrganizationSelected } from "./org-selection";
 import { auditAfterHook } from "./audit-hooks";
 import { refuseMagicLinkWithTwoFactor, requirePasskeyUserVerification, syncHasPasskey } from "./two-factor-policy";
+import { alertOnNewDevice, alertOnPasswordChange } from "./security-alerts";
 import { restrictApiDocsToAdmins } from "./api-docs";
 
 export const beforeHook = createAuthMiddleware(async (ctx) => {
@@ -18,5 +19,7 @@ export const beforeHook = createAuthMiddleware(async (ctx) => {
 export const afterHook = createAuthMiddleware(async (ctx) => {
   await markOrganizationSelected(ctx);
   await syncHasPasskey(ctx);
+  await alertOnNewDevice(ctx);
+  await alertOnPasswordChange(ctx);
   await auditAfterHook(ctx);
 });

@@ -83,3 +83,37 @@ export function invitationTemplate(params: {
     text: `${params.inviterName} vous invite à rejoindre ${params.organizationName} : ${params.url}`,
   };
 }
+
+export function securityAlertTemplate(params: {
+  subject: string;
+  title: string;
+  intro: string;
+  details: [label: string, value: string][];
+  url: string;
+}): EmailContent {
+  const rows = params.details
+    .map(
+      ([label, value]) =>
+        `<tr><td style="padding:6px 0;color:#71717a;width:40%">${escape(label)}</td><td style="padding:6px 0">${escape(value)}</td></tr>`,
+    )
+    .join("");
+  const body = `${escape(params.intro)}</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;margin:0 0 24px;border-top:1px solid #e4e4e7;border-bottom:1px solid #e4e4e7">${rows}</table>
+        <p style="font-size:15px;line-height:1.6;margin:0 0 24px"><strong>Ce n'était pas vous ?</strong> Changez votre mot de passe et déconnectez les sessions que vous ne reconnaissez pas.`;
+  return {
+    subject: params.subject,
+    html: layout(
+      params.title,
+      body,
+      { label: "Vérifier la sécurité de mon compte", url: params.url },
+      "Cet email est envoyé automatiquement pour protéger votre compte.",
+    ),
+    text: [
+      params.intro,
+      "",
+      ...params.details.map(([label, value]) => `${label} : ${value}`),
+      "",
+      `Ce n'était pas vous ? Changez votre mot de passe et vérifiez vos sessions : ${params.url}`,
+    ].join("\n"),
+  };
+}
