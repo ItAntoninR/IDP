@@ -1,12 +1,26 @@
-import { and, count, desc, eq, gte, notLike } from "drizzle-orm";
+import { and, count, desc, eq, gte, notLike, sql } from "drizzle-orm";
 import { db, schema } from "./db/index";
 
 const RECENT_ACTIVITY = 6;
 
 export async function organizationInsights(organizationId: string) {
-  const [members, [pending], [roles], activity] = await Promise.all([
+  const [[organization], [members], [pending], [roles], roleRows, activity] = await Promise.all([
     db
-      .select({ userId: schema.member.userId, totp: schema.user.twoFactorEnabled, passkey: schema.user.hasPasskey })
+      .select({
+        id: schema.organization.id,
+        name: schema.organization.name,
+        slug: schema.organization.slug,
+        apps: schema.organization.apps,
+        requireTwoFactor: schema.organization.requireTwoFactor,
+      })
+      .from(schema.organization)
+      .where(eq(schema.organization.id, organizationId))
+      .limit(1),
+    db
+      .select({
+        total: count(),
+        protected: sql<number>`count(*) filter (where coalesce(${schema.user.twoFactorEnabled}, false) or coalesce(${schema.user.hasPasskey}, false))::int`,
+      })
       .from(schema.member)
       .innerJoin(schema.user, eq(schema.user.id, schema.member.userId))
       .where(eq(schema.member.organizationId, organizationId)),
@@ -21,6 +35,12 @@ export async function organizationInsights(organizationId: string) {
         ),
       ),
     db.select({ n: count() }).from(schema.organizationRole).where(eq(schema.organizationRole.organizationId, organizationId)),
+    db.execute<{ role: string; n: number }>(
+      sql`select trim(r) as role, count(*)::int as n
+          from ${schema.member}, unnest(string_to_array(${schema.member.role}, ',')) as r
+          where ${schema.member.organizationId} = ${organizationId}
+          group by trim(r)`,
+    ),
     db
       .select({
         id: schema.auditLog.id,
@@ -37,16 +57,15 @@ export async function organizationInsights(organizationId: string) {
       .limit(RECENT_ACTIVITY),
   ]);
 
-  const protectedMember = (m: (typeof members)[number]) => m.totp === true || m.passkey === true;
-  const twoFactor = Object.fromEntries(members.map((m) => [m.userId, protectedMember(m)]));
   return {
+    organization: organization ? { ...organization, apps: organization.apps ?? [], requireTwoFactor: organization.requireTwoFactor === true } : null,
     stats: {
-      members: members.length,
-      twoFactorEnabled: members.filter(protectedMember).length,
+      members: members?.total ?? 0,
+      twoFactorEnabled: members?.protected ?? 0,
       pendingInvitations: pending?.n ?? 0,
       customRoles: roles?.n ?? 0,
     },
-    twoFactor,
+    roleCounts: Object.fromEntries(roleRows.rows.map((r) => [r.role, Number(r.n)])) as Record<string, number>,
     recentActivity: activity,
   };
 }

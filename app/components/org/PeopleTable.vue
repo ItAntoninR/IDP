@@ -4,25 +4,25 @@ import { Copy, Ellipsis, Mail, MailX, PanelRightOpen, Send, UserMinus, Users } f
 import { authClient } from "~/lib/auth-client";
 import { errorMessage } from "~/lib/errors";
 import { formatDate, roleLabel, roleOptions } from "~/lib/labels";
-import type { FullOrganization, OrgInvitation, OrgMember, OrgRights } from "~/lib/org";
+import type { ManagedOrganization, OrgInvitation, OrgMember, OrgRights, PeopleFilter } from "~/lib/org";
 
-type Filter = "all" | "members" | "pending" | "no2fa";
 type Row = { kind: "member"; id: string; member: OrgMember } | { kind: "invitation"; id: string; invitation: OrgInvitation };
 
 const props = defineProps<{
-  org: FullOrganization;
+  org: ManagedOrganization;
   roles: string[];
   rights: OrgRights;
-  twoFactor: Record<string, boolean>;
 }>();
 const emit = defineEmits<{ changed: []; invite: [] }>();
 
 const session = authClient.useSession();
-const q = ref("");
 const route = useRoute();
-const filter = ref<Filter>(["members", "pending", "no2fa"].includes(route.query.filter as string) ? (route.query.filter as Filter) : "all");
+const filter = ref<PeopleFilter>(
+  ["members", "pending", "no2fa"].includes(route.query.filter as string) ? (route.query.filter as PeopleFilter) : "all",
+);
+const { q, page, data, loading, pageSize, load, reload } = usePeoplePage("/api/account/organization/people", filter);
+watch(() => props.org.id, reload);
 const busy = ref(false);
-const removed = ref(new Set<string>());
 
 const member = ref<OrgMember | null>(null);
 const invitation = ref<OrgInvitation | null>(null);
@@ -31,41 +31,32 @@ const removeOpen = ref(false);
 const cancelOpen = ref(false);
 const newRole = ref("");
 
-const required = computed(() => props.org.requireTwoFactor === true);
-const pendingInvitations = computed(() =>
-  props.org.invitations.filter((i) => i.status === "pending" && new Date(i.expiresAt) > new Date() && !removed.value.has(i.id)),
-);
-const members = computed(() => props.org.members.filter((m) => !removed.value.has(m.id)));
-const withoutTwoFactor = computed(() => members.value.filter((m) => !props.twoFactor[m.userId]).length);
+const required = computed(() => props.org.requireTwoFactor);
+const counts = computed(() => data.value?.counts ?? { members: 0, pending: 0, withoutTwoFactor: 0 });
 
 const FILTERS = computed(() => [
   { id: "all" as const, label: "Tous" },
-  { id: "members" as const, label: "Membres", count: members.value.length },
-  { id: "pending" as const, label: "En attente", count: pendingInvitations.value.length },
-  { id: "no2fa" as const, label: "Sans 2FA", count: withoutTwoFactor.value },
+  { id: "members" as const, label: "Membres", count: counts.value.members },
+  { id: "pending" as const, label: "En attente", count: counts.value.pending },
+  { id: "no2fa" as const, label: "Sans 2FA", count: counts.value.withoutTwoFactor },
 ]);
 
-const rows = computed<Row[]>(() => {
-  const query = q.value.trim().toLowerCase();
-  const match = (...values: (string | null | undefined)[]) => !query || values.some((v) => v?.toLowerCase().includes(query));
-  const memberRows: Row[] = members.value
-    .filter((m) => filter.value !== "pending" && (filter.value !== "no2fa" || !props.twoFactor[m.userId]))
-    .filter((m) => match(m.user.name, m.user.email))
-    .map((m) => ({ kind: "member", id: m.id, member: m }));
-  const invitationRows: Row[] =
-    filter.value === "all" || filter.value === "pending"
-      ? pendingInvitations.value.filter((i) => match(i.email)).map((i) => ({ kind: "invitation", id: i.id, invitation: i }))
-      : [];
-  return [...memberRows, ...invitationRows];
+const rows = computed<Row[]>(() =>
+  (data.value?.rows ?? []).map((r) => (r.kind === "member" ? { kind: "member", id: r.id, member: r } : { kind: "invitation", id: r.id, invitation: r })),
+);
+
+watch(data, (res) => {
+  if (!member.value || !res) return;
+  const fresh = res.rows.find((r): r is OrgMember => r.kind === "member" && r.id === member.value!.id);
+  if (fresh) member.value = fresh;
 });
 
-watch(
-  () => props.org,
-  (org) => {
-    removed.value = new Set();
-    if (member.value) member.value = org.members.find((m) => m.id === member.value!.id) ?? member.value;
-  },
-);
+defineExpose({ reload: load });
+
+function changed() {
+  load();
+  emit("changed");
+}
 
 const isSelf = (m: OrgMember) => m.userId === session.value.data?.user.id;
 const canAct = (m: OrgMember) => props.rights.members && !isSelf(m);
@@ -107,7 +98,7 @@ async function saveRole() {
   if (res.error) return toast.error(errorMessage(res.error));
   member.value = { ...m, role: newRole.value };
   toast.success("Rôle mis à jour.");
-  emit("changed");
+  changed();
 }
 
 async function removeMember() {
@@ -117,11 +108,10 @@ async function removeMember() {
   const res = await authClient.organization.removeMember({ memberIdOrEmail: m.id, organizationId: props.org.id });
   busy.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
-  removed.value = new Set([...removed.value, m.id]);
   removeOpen.value = false;
   detailOpen.value = false;
   toast.success(`${m.user.email} a été retiré.`);
-  emit("changed");
+  changed();
 }
 
 async function resend(i: OrgInvitation) {
@@ -133,7 +123,7 @@ async function resend(i: OrgInvitation) {
   });
   if (res.error) return toast.error(errorMessage(res.error));
   toast.success(`Invitation renvoyée à ${i.email}.`);
-  emit("changed");
+  changed();
 }
 
 async function copyLink(i: OrgInvitation) {
@@ -148,10 +138,9 @@ async function cancelInvitation() {
   const res = await authClient.organization.cancelInvitation({ invitationId: i.id });
   busy.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
-  removed.value = new Set([...removed.value, i.id]);
   cancelOpen.value = false;
   toast.success("Invitation annulée.");
-  emit("changed");
+  changed();
 }
 </script>
 
@@ -174,12 +163,13 @@ async function cancelInvitation() {
       </div>
     </div>
 
-    <div v-if="!rows.length" class="flex flex-col items-center gap-2 px-6 py-14 text-center">
+    <PageLoader v-if="!data" />
+    <div v-else-if="!rows.length" class="flex flex-col items-center gap-2 px-6 py-14 text-center">
       <span class="bg-muted flex size-10 items-center justify-center rounded-lg"><Users class="text-muted-foreground size-5" /></span>
       <p class="font-medium">{{ filter === "pending" ? "Aucune invitation en attente" : "Personne ne correspond" }}</p>
       <Button v-if="filter === 'pending' && rights.invite" variant="outline" size="sm" class="mt-2" @click="emit('invite')">Inviter un membre</Button>
     </div>
-    <Table v-else>
+    <Table v-else :class="loading && 'opacity-60 transition-opacity'">
       <TableHeader>
         <TableRow class="hover:bg-transparent">
           <TableHead class="pl-4">Personne</TableHead>
@@ -210,7 +200,7 @@ async function cancelInvitation() {
               </div>
             </TableCell>
             <TableCell><Badge variant="outline">{{ roleLabel(row.member.role) }}</Badge></TableCell>
-            <TableCell><TwoFactorBadge :enabled="twoFactor[row.member.userId] === true" :required="required" /></TableCell>
+            <TableCell><TwoFactorBadge :enabled="row.member.twoFactor" :required="required" /></TableCell>
             <TableCell class="text-muted-foreground hidden md:table-cell">{{ dateOnly(row.member.createdAt) }}</TableCell>
             <TableCell class="pr-3 text-right" @click.stop>
               <DropdownMenu v-if="canAct(row.member)">
@@ -264,10 +254,7 @@ async function cancelInvitation() {
         </template>
       </TableBody>
     </Table>
-    <div class="text-muted-foreground border-t px-4 py-2.5 text-xs">
-      {{ members.length }} membre{{ members.length > 1 ? "s" : "" }}
-      <template v-if="pendingInvitations.length"> · {{ pendingInvitations.length }} invitation{{ pendingInvitations.length > 1 ? "s" : "" }} en attente</template>
-    </div>
+    <TablePagination v-if="data && rows.length" v-model="page" :total="data.total" :page-size="pageSize" />
   </div>
 
   <Sheet v-model:open="detailOpen">
@@ -283,7 +270,7 @@ async function cancelInvitation() {
           </div>
           <div class="flex flex-wrap items-center gap-2 pt-2">
             <Badge variant="outline">{{ roleLabel(member.role) }}</Badge>
-            <TwoFactorBadge :enabled="twoFactor[member.userId] === true" :required="required" />
+            <TwoFactorBadge :enabled="member.twoFactor" :required="required" />
             <Badge v-if="isSelf(member)" variant="secondary">Vous</Badge>
           </div>
         </SheetHeader>
@@ -297,7 +284,7 @@ async function cancelInvitation() {
               </div>
               <div class="flex justify-between gap-4 px-3 py-2.5">
                 <dt class="text-muted-foreground">Double authentification</dt>
-                <dd><TwoFactorBadge :enabled="twoFactor[member.userId] === true" :required="required" /></dd>
+                <dd><TwoFactorBadge :enabled="member.twoFactor" :required="required" /></dd>
               </div>
             </dl>
           </section>

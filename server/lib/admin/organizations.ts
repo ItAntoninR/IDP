@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
 import { auth } from "../auth";
 import { db, schema } from "../db/index";
 import { APP_IDS } from "../../../shared/permissions";
@@ -64,24 +64,16 @@ export async function listOrganizations(q: string) {
 export async function getOrganizationDetail(id: string) {
   const [organization] = await db.select().from(schema.organization).where(eq(schema.organization.id, id)).limit(1);
   if (!organization) return null;
-  const members = await db
-    .select({
-      id: schema.member.id,
-      role: schema.member.role,
-      createdAt: schema.member.createdAt,
-      userId: schema.user.id,
-      name: schema.user.name,
-      email: schema.user.email,
-      twoFactorEnabled: sql<boolean>`(${schema.user.twoFactorEnabled} or ${schema.user.hasPasskey})`,
-    })
-    .from(schema.member)
-    .innerJoin(schema.user, eq(schema.user.id, schema.member.userId))
-    .where(eq(schema.member.organizationId, id));
-  const invitations = await db
-    .select()
-    .from(schema.invitation)
-    .where(and(eq(schema.invitation.organizationId, id), eq(schema.invitation.status, "pending")));
-  return { organization, members, invitations };
+  const [[members], [pending]] = await Promise.all([
+    db.select({ n: count() }).from(schema.member).where(eq(schema.member.organizationId, id)),
+    db
+      .select({ n: count() })
+      .from(schema.invitation)
+      .where(
+        and(eq(schema.invitation.organizationId, id), eq(schema.invitation.status, "pending"), gt(schema.invitation.expiresAt, new Date())),
+      ),
+  ]);
+  return { organization, counts: { members: members?.n ?? 0, pendingInvitations: pending?.n ?? 0 } };
 }
 
 export async function slugTaken(slug: string) {

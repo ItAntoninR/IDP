@@ -7,6 +7,12 @@ useHead({ title: "Personnes" });
 const route = useRoute();
 const { org, rights, insights, appLabels, roleNames, error, load, refresh } = useManagedOrganization();
 const inviteOpen = ref(route.query.invite === "1");
+const people = ref<{ reload: () => void } | null>(null);
+
+function onInvited() {
+  people.value?.reload();
+  refresh();
+}
 
 const summary = computed(() => `Applications autorisées : ${appLabels.value}`);
 
@@ -25,7 +31,7 @@ onMounted(load);
 
     <OrgSecurityBanner :required="org.requireTwoFactor === true" :stats="insights?.stats ?? null" :can-manage="rights.settings" />
 
-    <OrgPeopleTable :org="org" :roles="roleNames" :rights="rights" :two-factor="insights?.twoFactor ?? {}" @changed="refresh" @invite="inviteOpen = true" />
+    <OrgPeopleTable ref="people" :org="org" :roles="roleNames" :rights="rights" @changed="refresh" @invite="inviteOpen = true" />
 
     <OrgInviteDialog
       v-if="rights.invite"
@@ -33,7 +39,7 @@ onMounted(load);
       :organization-id="org.id"
       :organization-name="org.name"
       :roles="roleNames"
-      @invited="refresh"
+      @invited="onInvited"
     />
   </template>
 </template>

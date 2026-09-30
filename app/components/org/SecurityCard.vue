@@ -2,9 +2,9 @@
 import { toast } from "vue-sonner";
 import { authClient } from "~/lib/auth-client";
 import { errorMessage } from "~/lib/errors";
-import type { FullOrganization } from "~/lib/org";
+import type { ManagedOrganization } from "~/lib/org";
 
-const props = defineProps<{ org: FullOrganization; stats?: { members: number; twoFactorEnabled: number } | null }>();
+const props = defineProps<{ org: ManagedOrganization; stats?: { members: number; twoFactorEnabled: number } | null }>();
 const emit = defineEmits<{ changed: [] }>();
 
 const { refresh } = useAccountContext();

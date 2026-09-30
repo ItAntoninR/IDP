@@ -1,11 +1,11 @@
 import { authClient } from "~/lib/auth-client";
 import { errorMessage } from "~/lib/errors";
-import { parsePermission, type DynamicRole, type FullOrganization, type OrgRights } from "~/lib/org";
+import { parsePermission, type DynamicRole, type ManagedOrganization, type OrgRights } from "~/lib/org";
 import type { OrganizationInsights } from "~/lib/types";
 
 export function useManagedOrganization() {
   const { load: loadContext } = useAccountContext();
-  const org = useState<FullOrganization | null>("managed-org", () => null);
+  const org = useState<ManagedOrganization | null>("managed-org", () => null);
   const roles = useState<DynamicRole[]>("managed-org-roles", () => []);
   const rights = useState<OrgRights | null>("managed-org-rights", () => null);
   const insights = useState<OrganizationInsights | null>("managed-org-insights", () => null);
@@ -19,20 +19,19 @@ export function useManagedOrganization() {
     if (!id) return;
     const has = (permissions: Record<string, string[]>) =>
       authClient.organization.hasPermission({ organizationId: id, permissions } as never).then((r) => !!r.data?.success);
-    const [full, roleList, members, invite, ac, settings, stats] = await Promise.all([
-      authClient.organization.getFullOrganization({ query: { organizationId: id } }),
+    const [stats, roleList, members, invite, ac, settings] = await Promise.all([
+      $fetch<OrganizationInsights>("/api/account/organization").catch((e: { data?: unknown }) => {
+        error.value = errorMessage(e.data ?? e);
+        return null;
+      }),
       authClient.organization.listRoles({ query: { organizationId: id } }),
       has({ member: ["update"] }),
       has({ invitation: ["create"] }),
       has({ ac: ["create"] }),
       has({ organization: ["update"] }),
-      $fetch<OrganizationInsights>("/api/account/organization").catch(() => null),
     ]);
-    if (full.error) {
-      error.value = errorMessage(full.error);
-      return;
-    }
-    org.value = full.data as unknown as FullOrganization;
+    if (!stats?.organization) return;
+    org.value = stats.organization;
     roles.value = ((roleList.data ?? []) as unknown as { id: string; role: string; permission: unknown }[]).map((r) => ({
       ...r,
       permission: parsePermission(r.permission),

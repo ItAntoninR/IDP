@@ -49,8 +49,9 @@ export interface Dashboard {
 }
 
 export interface OrganizationInsights {
+  organization: { id: string; name: string; slug: string; apps: string[]; requireTwoFactor: boolean } | null;
   stats: { members: number; twoFactorEnabled: number; pendingInvitations: number; customRoles: number };
-  twoFactor: Record<string, boolean>;
+  roleCounts: Record<string, number>;
   recentActivity: {
     id: string;
     action: string;

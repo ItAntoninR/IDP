@@ -3,10 +3,10 @@ import { toast } from "vue-sonner";
 import { Ellipsis, KeyRound, Lock, Pencil, Plus, Trash2 } from "lucide-vue-next";
 import { authClient } from "~/lib/auth-client";
 import { errorMessage } from "~/lib/errors";
-import type { DynamicRole, FullOrganization } from "~/lib/org";
+import type { DynamicRole, ManagedOrganization } from "~/lib/org";
 import type { PermissionState } from "~/lib/types";
 
-const props = defineProps<{ org: FullOrganization; roles: DynamicRole[] }>();
+const props = defineProps<{ org: ManagedOrganization; roles: DynamicRole[]; roleCounts: Record<string, number> }>();
 const emit = defineEmits<{ changed: [] }>();
 
 const editing = ref<DynamicRole | "new" | null>(null);
@@ -16,9 +16,9 @@ const deleteOpen = ref(false);
 const busy = ref(false);
 const removed = ref(new Set<string>());
 
-const allowedApps = computed(() => props.org.apps ?? []);
+const allowedApps = computed(() => props.org.apps);
 const visibleRoles = computed(() => props.roles.filter((r) => !removed.value.has(r.id)));
-const membersWith = (role: string) => props.org.members.filter((m) => m.role.split(",").includes(role)).length;
+const membersWith = (role: string) => props.roleCounts[role] ?? 0;
 
 watch(
   () => props.roles,

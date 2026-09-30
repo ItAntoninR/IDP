@@ -2,6 +2,7 @@
 import { toast } from "vue-sonner";
 import { errorMessage } from "~/lib/errors";
 import { formatDate, roleLabel } from "~/lib/labels";
+import type { OrgInvitation, OrgMember } from "~/lib/org";
 
 interface OrgDetailResponse {
   organization: {
@@ -12,8 +13,7 @@ interface OrgDetailResponse {
     requireTwoFactor: boolean | null;
     createdAt: string;
   };
-  members: { id: string; role: string; name: string; email: string; twoFactorEnabled: boolean | null }[];
-  invitations: { id: string; email: string; role: string; expiresAt: string }[];
+  counts: { members: number; pendingInvitations: number };
 }
 
 const props = defineProps<{ id: string }>();
@@ -24,13 +24,12 @@ const apps = ref<string[]>([]);
 const ownerEmail = ref("");
 const saving = ref(false);
 const tab = ref("members");
-const memberQuery = ref("");
 
-const filteredMembers = computed(() => {
-  const q = memberQuery.value.trim().toLowerCase();
-  const members = detail.value?.members ?? [];
-  return q ? members.filter((m) => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)) : members;
-});
+const peopleEndpoint = () => `/api/admin/organizations/${props.id}/people`;
+const members = usePeoplePage(peopleEndpoint, ref("members"), 20);
+const invitations = usePeoplePage(peopleEndpoint, ref("pending"), 20);
+const memberRows = computed(() => (members.data.value?.rows ?? []).filter((r): r is OrgMember => r.kind === "member"));
+const invitationRows = computed(() => (invitations.data.value?.rows ?? []).filter((r): r is OrgInvitation => r.kind === "invitation"));
 
 const appsChanged = computed(() => {
   const saved = [...(detail.value?.organization.apps ?? [])].sort().join();
@@ -87,7 +86,7 @@ async function inviteOwner() {
     toast.success(`Invitation gérant envoyée à ${ownerEmail.value}.`);
     ownerEmail.value = "";
     emit("changed");
-    await load();
+    await Promise.all([load(), invitations.load()]);
   } catch (e) {
     fail(e);
   }
@@ -140,32 +139,33 @@ watch(() => props.id, load, { immediate: true });
 
       <Tabs v-model="tab" class="gap-4">
         <TabsList class="w-full">
-          <TabsTrigger value="members">Membres · {{ detail.members.length }}</TabsTrigger>
-          <TabsTrigger value="invitations">Invitations · {{ detail.invitations.length }}</TabsTrigger>
+          <TabsTrigger value="members">Membres · {{ detail.counts.members }}</TabsTrigger>
+          <TabsTrigger value="invitations">Invitations · {{ detail.counts.pendingInvitations }}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="members" class="space-y-3">
-          <SearchInput v-if="detail.members.length > 5" v-model="memberQuery" placeholder="Rechercher un membre" class="sm:max-w-none" />
-          <p v-if="!detail.members.length" class="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+          <SearchInput v-if="detail.counts.members > 5" v-model="members.q.value" placeholder="Rechercher un membre" class="sm:max-w-none" />
+          <PageLoader v-if="!members.data.value" />
+          <p v-else-if="!detail.counts.members" class="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
             Aucun membre pour l'instant.
           </p>
-          <p v-else-if="!filteredMembers.length" class="text-muted-foreground p-4 text-center text-sm">Aucun membre ne correspond.</p>
-          <ul v-else class="max-h-[26rem] divide-y overflow-y-auto rounded-lg border">
-            <li v-for="m in filteredMembers" :key="m.id" class="flex items-center gap-3 px-3 py-2.5">
-              <span class="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium">
-                {{ initials(m.name || m.email) }}
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium">{{ m.name }}</p>
-                <p class="text-muted-foreground truncate text-xs">{{ m.email }}</p>
-              </div>
-              <TwoFactorBadge :enabled="m.twoFactorEnabled === true" :required="detail.organization.requireTwoFactor === true" />
-              <Badge variant="outline">{{ roleLabel(m.role) }}</Badge>
-            </li>
-          </ul>
-          <p v-if="memberQuery && filteredMembers.length" class="text-muted-foreground text-xs">
-            {{ filteredMembers.length }} sur {{ detail.members.length }}
-          </p>
+          <p v-else-if="!memberRows.length" class="text-muted-foreground p-4 text-center text-sm">Aucun membre ne correspond.</p>
+          <div v-else class="overflow-hidden rounded-lg border" :class="members.loading.value && 'opacity-60'">
+            <ul class="divide-y">
+              <li v-for="m in memberRows" :key="m.id" class="flex items-center gap-3 px-3 py-2.5">
+                <span class="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                  {{ initials(m.user.name || m.user.email) }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium">{{ m.user.name }}</p>
+                  <p class="text-muted-foreground truncate text-xs">{{ m.user.email }}</p>
+                </div>
+                <TwoFactorBadge :enabled="m.twoFactor" :required="detail.organization.requireTwoFactor === true" />
+                <Badge variant="outline">{{ roleLabel(m.role) }}</Badge>
+              </li>
+            </ul>
+            <TablePagination v-model="members.page.value" :total="members.data.value.total" :page-size="members.pageSize" />
+          </div>
         </TabsContent>
 
         <TabsContent value="invitations" class="space-y-4">
@@ -173,18 +173,22 @@ watch(() => props.id, load, { immediate: true });
             <div class="flex-1"><FormField v-model="ownerEmail" label="Inviter un gérant" type="email" placeholder="nom@entreprise.fr" required /></div>
             <Button type="submit" variant="outline">Inviter</Button>
           </form>
-          <p v-if="!detail.invitations.length" class="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+          <PageLoader v-if="!invitations.data.value" />
+          <p v-else-if="!invitationRows.length" class="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
             Aucune invitation en attente.
           </p>
-          <ul v-else class="max-h-[22rem] divide-y overflow-y-auto rounded-lg border">
-            <li v-for="i in detail.invitations" :key="i.id" class="flex items-center gap-3 px-3 py-2.5">
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm">{{ i.email }}</p>
-                <p class="text-muted-foreground text-xs">Expire le {{ formatDate(i.expiresAt) }}</p>
-              </div>
-              <Badge variant="outline">{{ roleLabel(i.role) }}</Badge>
-            </li>
-          </ul>
+          <div v-else class="overflow-hidden rounded-lg border" :class="invitations.loading.value && 'opacity-60'">
+            <ul class="divide-y">
+              <li v-for="i in invitationRows" :key="i.id" class="flex items-center gap-3 px-3 py-2.5">
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm">{{ i.email }}</p>
+                  <p class="text-muted-foreground text-xs">Expire le {{ formatDate(i.expiresAt) }}</p>
+                </div>
+                <Badge variant="outline">{{ roleLabel(i.role) }}</Badge>
+              </li>
+            </ul>
+            <TablePagination v-model="invitations.page.value" :total="invitations.data.value.total" :page-size="invitations.pageSize" />
+          </div>
         </TabsContent>
       </Tabs>
     </SheetBody>
