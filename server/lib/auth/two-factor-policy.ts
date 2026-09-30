@@ -6,6 +6,7 @@ import { db, schema } from "../db/index";
 import type { HookContext } from "./hook-context";
 import { impersonatorOf } from "./impersonation";
 import { alertOnPasskeyChange } from "./security-alerts";
+import { auditPasskeyChange } from "./security-audit";
 
 export async function organizationsRequiringTwoFactor(userId: string) {
   return db
@@ -79,8 +80,11 @@ export async function syncHasPasskey(ctx: HookContext) {
   const [row] = await db.select({ n: count() }).from(schema.passkey).where(eq(schema.passkey.userId, user.id));
   await db.update(schema.user).set({ hasPasskey: (row?.n ?? 0) > 0 }).where(eq(schema.user.id, user.id));
   const added = ctx.path === "/passkey/verify-registration";
-  const name = added ? (ctx.context.returned as { name?: string | null } | undefined)?.name : null;
+  const returned = ctx.context.returned as { id?: string; name?: string | null } | undefined;
+  const name = added ? returned?.name : null;
+  const passkeyId = added ? returned?.id : (ctx.body as { id?: string } | undefined)?.id;
   alertOnPasskeyChange(user.email, added ? "added" : "removed", name);
+  await auditPasskeyChange(user.id, added ? "added" : "removed", { name, passkeyId }, ctx as never);
 }
 
 const USER_VERIFIED = 0x04;

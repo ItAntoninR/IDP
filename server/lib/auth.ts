@@ -26,6 +26,7 @@ import { impersonationClaim } from "./auth/impersonation";
 import { twoFactorTokenGuard } from "./auth/two-factor-policy";
 import { authentikUserInfo } from "./auth/authentik";
 import { alertOnTwoFactorChange, notifyPasswordChanged } from "./auth/security-alerts";
+import { auditTwoFactorChange } from "./auth/security-audit";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "./auth/invitations";
 import { buildAccessTokenClaims } from "./auth/access-claims";
 import { APPS } from "./apps";
@@ -124,7 +125,11 @@ export const auth = betterAuth({
     },
     user: {
       update: {
-        after: async (user, ctx) => alertOnTwoFactorChange(user as { email: string; twoFactorEnabled?: boolean | null }, ctx?.path),
+        after: async (user, ctx) => {
+          const changed = user as { id: string; email: string; twoFactorEnabled?: boolean | null };
+          alertOnTwoFactorChange(changed, ctx?.path);
+          await auditTwoFactorChange(changed, ctx as never);
+        },
       },
       create: {
         before: async (user, ctx) => {

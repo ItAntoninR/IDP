@@ -31,7 +31,7 @@ L'entreprise est **responsable de traitement** pour les comptes gérés par ce s
 | Créer et gérer les comptes, permettre la connexion aux applications | Exécution du contrat avec l'organisation cliente et intérêt légitime à fournir un accès sécurisé à ses membres |
 | Gérer les organisations, les rôles, les invitations et les droits d'accès aux applications | Exécution du contrat |
 | Sécuriser les comptes : double authentification, alertes de nouvelle connexion, refus des mots de passe ayant fuité, limitation des tentatives | Intérêt légitime (sécurité du service et des comptes) |
-| Tracer les actions sensibles dans un journal d'audit (rôles, invitations, impersonation, suppressions) | Intérêt légitime (sécurité, preuve, prévention des abus) |
+| Tracer les actions sensibles dans un journal d'audit (rôles, invitations, impersonation, suppressions, double authentification et passkeys) | Intérêt légitime (sécurité, preuve, prévention des abus) |
 | Assistance : impersonation par le support, réinitialisation de la 2FA | Intérêt légitime (assistance aux utilisateurs) |
 | Conserver une archive après suppression pour répondre aux réquisitions des autorités | Obligation légale |
 

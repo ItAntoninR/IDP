@@ -152,14 +152,21 @@ export function notifyPasswordChanged(email: string) {
   });
 }
 
+export function twoFactorChange(user: { twoFactorEnabled?: boolean | null }, path: string | undefined) {
+  if (path === "/two-factor/disable") return "disabled" as const;
+  if (path?.startsWith("/two-factor/") && user.twoFactorEnabled) return "enabled" as const;
+  return null;
+}
+
 export function alertOnTwoFactorChange(user: { email: string; twoFactorEnabled?: boolean | null }, path: string | undefined) {
-  if (path === "/two-factor/disable") {
+  const change = twoFactorChange(user, path);
+  if (change === "disabled") {
     sendSecurityAlert(user.email, {
       subject: "Double authentification désactivée",
       title: "La double authentification est désactivée",
       intro: "L'application d'authentification a été retirée de votre compte : un code n'est plus demandé à la connexion.",
     });
-  } else if (path?.startsWith("/two-factor/") && user.twoFactorEnabled) {
+  } else if (change === "enabled") {
     sendSecurityAlert(user.email, {
       subject: "Double authentification activée",
       title: "La double authentification est activée",

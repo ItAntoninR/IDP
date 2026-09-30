@@ -32,6 +32,8 @@ const ICONS: Record<string, Component> = {
   member: Users,
   "user.ban": ShieldOff,
   "user.unban": ShieldCheck,
+  "user.two_factor": ShieldCheck,
+  "user.passkey": KeyRound,
   user: UserCog,
 };
 const TARGET_LABELS: Record<string, string> = {
@@ -86,7 +88,8 @@ const actionOptions = computed(() =>
   ),
 );
 
-const iconFor = (action: string) => ICONS[action] ?? ICONS[action.split(".")[0]!] ?? ScrollText;
+const iconFor = (action: string) =>
+  ICONS[action] ?? ICONS[action.split(".").slice(0, 2).join(".")] ?? ICONS[action.split(".")[0]!] ?? ScrollText;
 const actorLabel = (e: AuditEntry) => e.actorName || e.actorEmail || (e.actorId ? "Utilisateur supprimé" : "Système");
 const metadataEntries = (e: AuditEntry) => Object.entries(e.metadata ?? {});
 const formatValue = (value: unknown) => (typeof value === "string" ? value : JSON.stringify(value));

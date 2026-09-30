@@ -75,6 +75,37 @@ describe("security alerts", () => {
 
     await a.post("/api/auth/two-factor/disable").send({ password: "another-strong-password" }).expect(200);
     await waitForEmail(user.email, { subject: /Double authentification désactivée/ });
+
+    const entries = await db.select().from(schema.auditLog).where(eq(schema.auditLog.targetId, user.id));
+    expect(entries.map((e) => e.action).sort()).toEqual(["user.two_factor.disable", "user.two_factor.enable"]);
+    expect(entries.every((e) => e.actorId === user.id && e.impersonatedBy === null)).toBe(true);
+  });
+
+  it("records passkey removals in the audit log, including during impersonation", async () => {
+    const { owner: ownerAgent, ownerEmail, adminAgent, admin } = await setupOrgWithOwner(["datahub"]);
+    const [owner] = await db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.email, ownerEmail));
+    const passkey = (id: string) => ({
+      id,
+      name: `Key ${id}`,
+      publicKey: "public-key",
+      userId: owner!.id,
+      credentialID: `credential-${id}`,
+      counter: 0,
+      deviceType: "singleDevice",
+      backedUp: false,
+      createdAt: new Date(),
+    });
+    await db.insert(schema.passkey).values([passkey("pk-1"), passkey("pk-2")]);
+
+    await ownerAgent.post("/api/auth/passkey/delete-passkey").send({ id: "pk-1" }).expect(200);
+
+    await adminAgent.post("/api/auth/admin/impersonate-user").send({ userId: owner!.id }).expect(200);
+    await adminAgent.post("/api/auth/passkey/delete-passkey").send({ id: "pk-2" }).expect(200);
+
+    const entries = await db.select().from(schema.auditLog).where(eq(schema.auditLog.action, "user.passkey.remove"));
+    expect(entries).toHaveLength(2);
+    expect(entries.find((e) => (e.metadata as { passkeyId?: string }).passkeyId === "pk-1")).toMatchObject({ actorId: owner!.id, impersonatedBy: null });
+    expect(entries.find((e) => (e.metadata as { passkeyId?: string }).passkeyId === "pk-2")).toMatchObject({ actorId: owner!.id, impersonatedBy: admin.id });
   });
 
   it("tells the user when support resets their second factors", async () => {
