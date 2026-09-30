@@ -61,6 +61,8 @@ const MESSAGES: Record<string, string> = {
   YOU_CANNOT_IMPERSONATE_ADMINS: "Impossible de se connecter en tant qu'un autre administrateur.",
   YOU_CANNOT_BAN_YOURSELF: "Vous ne pouvez pas vous suspendre vous-même.",
   TOO_MANY_REQUESTS: "Trop de tentatives. Patientez une minute avant de réessayer.",
+  UNKNOWN_ROLE: "Ce rôle n'existe pas dans l'organisation.",
+  ALREADY_MEMBER: "Cette personne est déjà membre de l'organisation.",
 };
 
 export interface AppError {

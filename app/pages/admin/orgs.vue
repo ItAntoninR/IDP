@@ -4,7 +4,7 @@ import { toast } from "vue-sonner";
 import { Building2, Copy, Ellipsis, MailPlus, PanelRightOpen, Plus, Users } from "lucide-vue-next";
 import { APP_IDS } from "#shared/permissions";
 import { errorMessage } from "~/lib/errors";
-import { RESOURCE_LABELS } from "~/lib/labels";
+import { RESOURCE_LABELS, roleOptions } from "~/lib/labels";
 
 definePageMeta({ layout: "admin", middleware: "admin" });
 useHead({ title: "Organisations" });
@@ -39,6 +39,8 @@ const detailOpen = ref(false);
 const inviteFor = ref<OrgRow | null>(null);
 const inviteOpen = ref(false);
 const inviteEmail = ref("");
+const inviteRole = ref("owner");
+const inviteRoles = ref<string[]>(["owner", "member"]);
 
 const rows = computed(() => orgs.value ?? []);
 const summary = computed(() => {
@@ -86,18 +88,25 @@ function openDetail(org: OrgRow) {
   detailOpen.value = true;
 }
 
-function openInvite(org: OrgRow) {
+async function openInvite(org: OrgRow) {
   inviteEmail.value = "";
+  inviteRole.value = "owner";
+  inviteRoles.value = ["owner", "member"];
   inviteFor.value = org;
   inviteOpen.value = true;
+  const detail = await $fetch<{ roles: string[] }>(`/api/admin/organizations/${org.id}`).catch(() => null);
+  if (detail && inviteFor.value?.id === org.id) inviteRoles.value = detail.roles;
 }
 
 async function sendInvite() {
   const org = inviteFor.value;
   if (!org) return;
   try {
-    await $fetch(`/api/admin/organizations/${org.id}/owner-invitations`, { method: "POST", body: { email: inviteEmail.value } });
-    toast.success(`Invitation gérant envoyée à ${inviteEmail.value}.`);
+    await $fetch(`/api/admin/organizations/${org.id}/invitations`, {
+      method: "POST",
+      body: { email: inviteEmail.value, role: inviteRole.value },
+    });
+    toast.success(`Invitation envoyée à ${inviteEmail.value}.`);
     inviteOpen.value = false;
     load();
   } catch (e) {
@@ -206,7 +215,7 @@ onMounted(load);
               <DropdownMenuContent>
                 <DropdownMenuLabel>{{ o.name }}</DropdownMenuLabel>
                 <DropdownMenuItem @select="openDetail(o)"><PanelRightOpen /> Ouvrir le détail</DropdownMenuItem>
-                <DropdownMenuItem @select="openInvite(o)"><MailPlus /> Inviter un gérant</DropdownMenuItem>
+                <DropdownMenuItem @select="openInvite(o)"><MailPlus /> Inviter une personne</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem @select="copyId(o)"><Copy /> Copier l'identifiant</DropdownMenuItem>
               </DropdownMenuContent>
@@ -231,11 +240,15 @@ onMounted(load);
   <Dialog v-model:open="inviteOpen">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Inviter un gérant</DialogTitle>
-        <DialogDescription>La personne recevra une invitation pour gérer {{ inviteFor?.name }}.</DialogDescription>
+        <DialogTitle>Inviter une personne</DialogTitle>
+        <DialogDescription>La personne recevra une invitation pour rejoindre {{ inviteFor?.name }} avec le rôle choisi.</DialogDescription>
       </DialogHeader>
       <form class="space-y-5" @submit.prevent="sendInvite">
         <FormField v-model="inviteEmail" label="Email" type="email" placeholder="nom@entreprise.fr" required />
+        <div class="grid gap-2">
+          <Label for="admin-invite-role">Rôle</Label>
+          <AppSelect id="admin-invite-role" v-model="inviteRole" :options="roleOptions(inviteRoles)" />
+        </div>
         <DialogFooter>
           <Button type="button" variant="outline" @click="inviteOpen = false">Annuler</Button>
           <Button type="submit">Envoyer l'invitation</Button>

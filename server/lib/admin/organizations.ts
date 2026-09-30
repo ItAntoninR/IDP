@@ -2,7 +2,7 @@ import { z } from "zod";
 import { and, count, desc, eq, gt, ilike, or, sql, type SQL } from "drizzle-orm";
 import { auth } from "../auth";
 import { db, schema } from "../db/index";
-import { APP_IDS } from "../../../shared/permissions";
+import { APP_IDS, STATIC_ROLES } from "../../../shared/permissions";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "../auth/invitations";
 import { audit } from "../support/audit";
 import { likePattern } from "../org-people";
@@ -33,8 +33,9 @@ export const updateOrganizationSchema = z.object({
   requireTwoFactor: z.boolean().optional(),
 });
 
-export const ownerInvitationSchema = z.object({
+export const invitationSchema = z.object({
   email: z.email().transform((e) => e.toLowerCase()),
+  role: z.string().trim().min(1).max(64).default("owner"),
 });
 
 const generateId = async (model: string) => {
@@ -96,7 +97,7 @@ export async function listOrganizations(query: z.infer<typeof listOrganizationsS
 export async function getOrganizationDetail(id: string) {
   const [organization] = await db.select().from(schema.organization).where(eq(schema.organization.id, id)).limit(1);
   if (!organization) return null;
-  const [[members], [pending]] = await Promise.all([
+  const [[members], [pending], roles] = await Promise.all([
     db.select({ n: count() }).from(schema.member).where(eq(schema.member.organizationId, id)),
     db
       .select({ n: count() })
@@ -104,8 +105,9 @@ export async function getOrganizationDetail(id: string) {
       .where(
         and(eq(schema.invitation.organizationId, id), eq(schema.invitation.status, "pending"), gt(schema.invitation.expiresAt, new Date())),
       ),
+    organizationRoleNames(id),
   ]);
-  return { organization, counts: { members: members?.n ?? 0, pendingInvitations: pending?.n ?? 0 } };
+  return { organization, roles, counts: { members: members?.n ?? 0, pendingInvitations: pending?.n ?? 0 } };
 }
 
 export async function slugTaken(slug: string) {
@@ -209,9 +211,28 @@ export async function updateOrganization(id: string, input: z.infer<typeof updat
   return organization!;
 }
 
-export async function inviteOwner(id: string, email: string, actor: Actor) {
+export async function organizationRoleNames(organizationId: string) {
+  const rows = await db
+    .select({ role: schema.organizationRole.role })
+    .from(schema.organizationRole)
+    .where(eq(schema.organizationRole.organizationId, organizationId))
+    .orderBy(schema.organizationRole.role);
+  return [...STATIC_ROLES, ...rows.map((r) => r.role)];
+}
+
+type InvitationResult = { ok: true; invitationId: string } | { ok: false; code: "ORGANIZATION_NOT_FOUND" | "UNKNOWN_ROLE" | "ALREADY_MEMBER" };
+
+export async function inviteToOrganization(id: string, email: string, role: string, actor: Actor): Promise<InvitationResult> {
   const [org] = await db.select().from(schema.organization).where(eq(schema.organization.id, id)).limit(1);
-  if (!org) return null;
+  if (!org) return { ok: false, code: "ORGANIZATION_NOT_FOUND" };
+  if (!(await organizationRoleNames(id)).includes(role)) return { ok: false, code: "UNKNOWN_ROLE" };
+  const [existing] = await db
+    .select({ id: schema.member.id })
+    .from(schema.member)
+    .innerJoin(schema.user, eq(schema.user.id, schema.member.userId))
+    .where(and(eq(schema.member.organizationId, id), eq(schema.user.email, email)))
+    .limit(1);
+  if (existing) return { ok: false, code: "ALREADY_MEMBER" };
   const invitationId = await generateId("invitation");
   const now = new Date();
   await db
@@ -224,7 +245,7 @@ export async function inviteOwner(id: string, email: string, actor: Actor) {
     id: invitationId,
     organizationId: id,
     email,
-    role: "owner",
+    role,
     status: "pending",
     expiresAt: invitationExpiry(now),
     inviterId: actor.actorId,
@@ -237,7 +258,7 @@ export async function inviteOwner(id: string, email: string, actor: Actor) {
     targetType: "invitation",
     targetId: invitationId,
     organizationId: id,
-    metadata: { email, role: "owner" },
+    metadata: { email, role },
   });
-  return invitationId;
+  return { ok: true, invitationId };
 }

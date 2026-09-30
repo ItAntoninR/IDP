@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { errorMessage } from "~/lib/errors";
-import { formatDate, roleLabel } from "~/lib/labels";
+import { formatDate, roleLabel, roleOptions } from "~/lib/labels";
 import type { OrgInvitation, OrgMember } from "~/lib/org";
 
 interface OrgDetailResponse {
@@ -13,6 +13,7 @@ interface OrgDetailResponse {
     requireTwoFactor: boolean | null;
     createdAt: string;
   };
+  roles: string[];
   counts: { members: number; pendingInvitations: number };
 }
 
@@ -21,7 +22,8 @@ const emit = defineEmits<{ changed: [] }>();
 
 const detail = ref<OrgDetailResponse | null>(null);
 const apps = ref<string[]>([]);
-const ownerEmail = ref("");
+const inviteEmail = ref("");
+const inviteRole = ref("owner");
 const saving = ref(false);
 const tab = ref("members");
 
@@ -80,11 +82,14 @@ async function setTwoFactor(value: boolean) {
   }
 }
 
-async function inviteOwner() {
+async function invite() {
   try {
-    await $fetch(`/api/admin/organizations/${props.id}/owner-invitations`, { method: "POST", body: { email: ownerEmail.value } });
-    toast.success(`Invitation gérant envoyée à ${ownerEmail.value}.`);
-    ownerEmail.value = "";
+    await $fetch(`/api/admin/organizations/${props.id}/invitations`, {
+      method: "POST",
+      body: { email: inviteEmail.value, role: inviteRole.value },
+    });
+    toast.success(`Invitation envoyée à ${inviteEmail.value}.`);
+    inviteEmail.value = "";
     emit("changed");
     await Promise.all([load(), invitations.load()]);
   } catch (e) {
@@ -169,8 +174,9 @@ watch(() => props.id, load, { immediate: true });
         </TabsContent>
 
         <TabsContent value="invitations" class="space-y-4">
-          <form class="flex items-end gap-2" @submit.prevent="inviteOwner">
-            <div class="flex-1"><FormField v-model="ownerEmail" label="Inviter un gérant" type="email" placeholder="nom@entreprise.fr" required /></div>
+          <form class="grid gap-2 sm:grid-cols-[1fr_10rem_auto] sm:items-end" @submit.prevent="invite">
+            <FormField v-model="inviteEmail" label="Inviter une personne" type="email" placeholder="nom@entreprise.fr" required />
+            <AppSelect v-model="inviteRole" :options="roleOptions(detail.roles)" aria-label="Rôle" />
             <Button type="submit" variant="outline">Inviter</Button>
           </form>
           <PageLoader v-if="!invitations.data.value" />
