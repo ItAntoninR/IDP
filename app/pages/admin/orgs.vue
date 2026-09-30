@@ -19,9 +19,19 @@ interface OrgRow {
   pendingInvitations: number;
 }
 
+interface OrgPage {
+  organizations: OrgRow[];
+  total: number;
+  stats: { members: number; pendingInvitations: number };
+}
+
+const PAGE_SIZE = 25;
 const q = ref("");
 const appFilter = ref<string | null>(null);
+const page = ref(0);
 const orgs = ref<OrgRow[] | null>(null);
+const total = ref(0);
+const stats = ref<OrgPage["stats"]>({ members: 0, pendingInvitations: 0 });
 const error = ref("");
 const creating = ref(false);
 const selected = ref<string | null>(null);
@@ -30,25 +40,40 @@ const inviteFor = ref<OrgRow | null>(null);
 const inviteOpen = ref(false);
 const inviteEmail = ref("");
 
-const rows = computed(() => (orgs.value ?? []).filter((o) => !appFilter.value || (o.apps ?? []).includes(appFilter.value)));
+const rows = computed(() => orgs.value ?? []);
 const summary = computed(() => {
-  const list = orgs.value ?? [];
-  const members = list.reduce((n, o) => n + o.memberCount, 0);
-  const pending = list.reduce((n, o) => n + o.pendingInvitations, 0);
-  const parts = [`${list.length} organisation${list.length > 1 ? "s" : ""}`, `${members} membre${members > 1 ? "s" : ""}`];
+  const { members, pendingInvitations: pending } = stats.value;
+  const parts = [`${total.value} organisation${total.value > 1 ? "s" : ""}`, `${members} membre${members > 1 ? "s" : ""}`];
   if (pending) parts.push(`${pending} invitation${pending > 1 ? "s" : ""} en attente`);
   return parts.join(" · ");
 });
 
 const dateOnly = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(value));
 
+let requestId = 0;
 async function load() {
+  const current = ++requestId;
   try {
-    orgs.value = (await $fetch<{ organizations: OrgRow[] }>("/api/admin/organizations", { query: { q: q.value } })).organizations;
+    const res = await $fetch<OrgPage>("/api/admin/organizations", {
+      query: { q: q.value, app: appFilter.value ?? undefined, limit: PAGE_SIZE, offset: page.value * PAGE_SIZE },
+    });
+    if (current !== requestId) return;
+    if (!res.organizations.length && page.value > 0) {
+      page.value = Math.max(0, Math.ceil(res.total / PAGE_SIZE) - 1);
+      return;
+    }
+    orgs.value = res.organizations;
+    total.value = res.total;
+    stats.value = res.stats;
     error.value = "";
   } catch (e) {
-    error.value = errorMessage((e as { data?: unknown }).data ?? e);
+    if (current === requestId) error.value = errorMessage((e as { data?: unknown }).data ?? e);
   }
+}
+
+function reload() {
+  if (page.value === 0) load();
+  else page.value = 0;
 }
 
 function onCreated() {
@@ -85,7 +110,9 @@ async function copyId(org: OrgRow) {
   toast.success("Identifiant copié.");
 }
 
-watchDebounced(q, load, { debounce: 200 });
+watchDebounced(q, reload, { debounce: 250 });
+watch(appFilter, reload);
+watch(page, load);
 onMounted(load);
 </script>
 
@@ -188,9 +215,7 @@ onMounted(load);
         </TableRow>
       </TableBody>
     </Table>
-    <div v-if="orgs && rows.length" class="text-muted-foreground border-t px-4 py-2.5 text-xs">
-      {{ rows.length }} résultat{{ rows.length > 1 ? "s" : "" }}
-    </div>
+    <TablePagination v-if="orgs && rows.length" v-model="page" :total="total" :page-size="PAGE_SIZE" />
   </div>
 
   <Dialog v-model:open="creating">

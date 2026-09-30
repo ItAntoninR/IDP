@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { and, count, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, or, sql, type SQL } from "drizzle-orm";
 import { auth } from "../auth";
 import { db, schema } from "../db/index";
 import { APP_IDS } from "../../../shared/permissions";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "../auth/invitations";
 import { audit } from "../support/audit";
+import { likePattern } from "../org-people";
 
 export interface Actor {
   actorId: string;
@@ -43,22 +44,53 @@ const generateId = async (model: string) => {
 
 const invitationExpiry = (from: Date) => new Date(from.getTime() + INVITATION_TTL_SECONDS * 1000);
 
-export async function listOrganizations(q: string) {
-  const where = q ? or(ilike(schema.organization.name, `%${q}%`), ilike(schema.organization.slug, `%${q}%`)) : undefined;
-  return db
-    .select({
-      id: schema.organization.id,
-      name: schema.organization.name,
-      slug: schema.organization.slug,
-      apps: schema.organization.apps,
-      createdAt: schema.organization.createdAt,
-      memberCount: sql<number>`(select count(*)::int from "member" m where m.organization_id = "organization"."id")`,
-      pendingInvitations: sql<number>`(select count(*)::int from "invitation" i where i.organization_id = "organization"."id" and i.status = 'pending' and i.expires_at > now())`,
-    })
-    .from(schema.organization)
-    .where(where)
-    .orderBy(desc(schema.organization.createdAt))
-    .limit(200);
+export const listOrganizationsSchema = z.object({
+  q: z.string().trim().default(""),
+  app: z.enum(APP_IDS as [string, ...string[]]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export async function listOrganizations(query: z.infer<typeof listOrganizationsSchema>) {
+  const filters: SQL[] = [];
+  if (query.q) filters.push(or(ilike(schema.organization.name, likePattern(query.q)), ilike(schema.organization.slug, likePattern(query.q)))!);
+  if (query.app) filters.push(sql`${query.app} = any(${schema.organization.apps})`);
+  const where = filters.length ? and(...filters) : undefined;
+
+  const [organizations, [totals], [members], [pending]] = await Promise.all([
+    db
+      .select({
+        id: schema.organization.id,
+        name: schema.organization.name,
+        slug: schema.organization.slug,
+        apps: schema.organization.apps,
+        createdAt: schema.organization.createdAt,
+        memberCount: sql<number>`(select count(*)::int from "member" m where m.organization_id = "organization"."id")`,
+        pendingInvitations: sql<number>`(select count(*)::int from "invitation" i where i.organization_id = "organization"."id" and i.status = 'pending' and i.expires_at > now())`,
+      })
+      .from(schema.organization)
+      .where(where)
+      .orderBy(desc(schema.organization.createdAt), desc(schema.organization.id))
+      .limit(query.limit)
+      .offset(query.offset),
+    db.select({ n: count() }).from(schema.organization).where(where),
+    db
+      .select({ n: count() })
+      .from(schema.member)
+      .innerJoin(schema.organization, eq(schema.organization.id, schema.member.organizationId))
+      .where(where),
+    db
+      .select({ n: count() })
+      .from(schema.invitation)
+      .innerJoin(schema.organization, eq(schema.organization.id, schema.invitation.organizationId))
+      .where(and(where, eq(schema.invitation.status, "pending"), gt(schema.invitation.expiresAt, new Date()))),
+  ]);
+
+  return {
+    organizations,
+    total: totals?.n ?? 0,
+    stats: { members: members?.n ?? 0, pendingInvitations: pending?.n ?? 0 },
+  };
 }
 
 export async function getOrganizationDetail(id: string) {

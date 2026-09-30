@@ -4,8 +4,12 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "../server/lib/db/index";
 import {
   acceptInvitationAsNewUser,
+  createOrganization,
   resetDb,
   setupOrgWithOwner,
+  signedInAdmin,
+  signIn,
+  createUser,
   uniqueEmail,
   type Agent,
 } from "./helpers";
@@ -181,5 +185,57 @@ describe("organization people pagination", () => {
     const member = await acceptInvitationAsNewUser(email, inv.body.id);
     await member.post("/api/auth/organization/set-active").send({ organizationId }).expect(200);
     await member.get("/api/account/organization/people").expect(403);
+  });
+});
+
+describe("admin organization list pagination", () => {
+  let adminAgent: Agent;
+
+  beforeAll(async () => {
+    await resetDb();
+    ({ agent: adminAgent } = await signedInAdmin());
+    await createOrganization(adminAgent, { name: "Alpha 100%", slug: "alpha", apps: ["datahub"] });
+    await createOrganization(adminAgent, { name: "Beta", slug: "beta", apps: ["app"] });
+    await createOrganization(adminAgent, { name: "Gamma", slug: "gamma", apps: ["datahub", "app"] });
+  });
+
+  const list = (query: Record<string, string | number> = {}) => adminAgent.get("/api/admin/organizations").query(query);
+  const names = (body: { organizations: { name: string }[] }) => body.organizations.map((o) => o.name);
+
+  it("pages the newest organizations first with a total", async () => {
+    const first = await list({ limit: 2 }).expect(200);
+    expect(names(first.body)).toEqual(["Gamma", "Beta"]);
+    expect(first.body.total).toBe(3);
+
+    const second = await list({ limit: 2, offset: 2 }).expect(200);
+    expect(names(second.body)).toEqual(["Alpha 100%"]);
+    expect(second.body.total).toBe(3);
+  });
+
+  it("filters by allowed app in the database", async () => {
+    const res = await list({ app: "app" }).expect(200);
+    expect(names(res.body)).toEqual(["Gamma", "Beta"]);
+    expect(res.body.total).toBe(2);
+    await list({ app: "unknown" }).expect(400);
+  });
+
+  it("treats search wildcards literally", async () => {
+    const res = await list({ q: "%" }).expect(200);
+    expect(names(res.body)).toEqual(["Alpha 100%"]);
+    expect((await list({ q: "_" }).expect(200)).body.total).toBe(0);
+  });
+
+  it("summarizes the whole filtered set, not just the page", async () => {
+    const res = await list({ limit: 1 }).expect(200);
+    expect(res.body.organizations).toHaveLength(1);
+    expect(res.body.stats).toEqual({ members: 0, pendingInvitations: 3 });
+
+    const filtered = await list({ limit: 1, app: "datahub" }).expect(200);
+    expect(filtered.body.stats).toEqual({ members: 0, pendingInvitations: 2 });
+  });
+
+  it("is reserved to admins", async () => {
+    const user = await createUser();
+    await (await signIn(user.email)).get("/api/admin/organizations").expect(403);
   });
 });
