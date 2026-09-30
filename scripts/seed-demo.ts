@@ -10,7 +10,7 @@ if (env.NODE_ENV === "production") {
   process.exit(1);
 }
 
-const PASSWORD = "demo-password-123";
+const PASSWORD = "auth-demo-7Rk2-quartz";
 const ctx = await auth.$context;
 const id = (model: string) => ctx.generateId({ model }) || crypto.randomUUID();
 

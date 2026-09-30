@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, ne } from "drizzle-orm";
+import { hashPassword } from "better-auth/crypto";
 import { auth } from "../auth";
 import { APPS } from "../apps";
 import { db, schema } from "../db/index";
@@ -37,7 +38,7 @@ async function withSystemAdminSession<T>(fn: (headers: Headers) => Promise<T>): 
     );
     [system] = await db.select().from(schema.user).where(eq(schema.user.id, created.user.id));
   } else {
-    const hash = await ctx.password.hash(password);
+    const hash = await hashPassword(password);
     const [credential] = await db
       .select()
       .from(schema.account)

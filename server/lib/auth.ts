@@ -1,6 +1,16 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { admin, genericOAuth, jwt, lastLoginMethod, magicLink, organization, twoFactor } from "better-auth/plugins";
+import {
+  admin,
+  genericOAuth,
+  haveIBeenPwned,
+  jwt,
+  lastLoginMethod,
+  magicLink,
+  openAPI,
+  organization,
+  twoFactor,
+} from "better-auth/plugins";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { db, schema } from "./db/index";
@@ -243,6 +253,8 @@ export const auth = betterAuth({
       trustDeviceMaxAge: 60 * 60 * 24 * 30,
     }),
     twoFactorTokenGuard(),
+    haveIBeenPwned(),
+    openAPI({ path: "/reference" }),
     lastLoginMethod({
       customResolveMethod: (ctx) => (ctx.path?.startsWith("/two-factor/verify-") ? "email" : null),
     }),

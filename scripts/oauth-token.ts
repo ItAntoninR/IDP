@@ -11,7 +11,7 @@ const { values } = parseArgs({
   options: {
     app: { type: "string", default: "datahub" },
     user: { type: "string", default: "owner@demo.test" },
-    password: { type: "string", default: "demo-password-123" },
+    password: { type: "string", default: "auth-demo-7Rk2-quartz" },
     org: { type: "string" },
     scope: { type: "string", default: "openid profile email offline_access" },
   },

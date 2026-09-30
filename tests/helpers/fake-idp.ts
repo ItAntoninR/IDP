@@ -1,7 +1,10 @@
+import { createHash } from "node:crypto";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
 export const AUTHENTIK_ISSUER = process.env.AUTHENTIK_ISSUER!;
 export const GOOGLE_ISSUER = "https://accounts.google.com";
+export const COMPROMISED_PASSWORD = "leaked-password-123";
+const compromisedHash = createHash("sha1").update(COMPROMISED_PASSWORD).digest("hex").toUpperCase();
 
 export interface FakeProfile {
   sub: string;
@@ -89,6 +92,13 @@ globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => 
       const p = decodeCode(code);
       return json({ sub: p.sub, email: p.email, email_verified: p.emailVerified ?? true, name: p.name ?? "Fake User" });
     }
+  }
+
+  if (url.startsWith("https://api.pwnedpasswords.com/range/")) {
+    const prefix = url.split("/").pop()!.toUpperCase();
+    const lines = ["0000000000000000000000000000000000A:0"];
+    if (compromisedHash.startsWith(prefix)) lines.push(`${compromisedHash.slice(5)}:42`);
+    return new Response(lines.join("\n"), { status: 200, headers: { "content-type": "text/plain" } });
   }
 
   if (url.startsWith("https://oauth2.googleapis.com/token")) {

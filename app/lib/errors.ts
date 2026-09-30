@@ -1,5 +1,7 @@
 const MESSAGES: Record<string, string> = {
   INVALID_EMAIL_OR_PASSWORD: "Email ou mot de passe incorrect.",
+  PASSWORD_COMPROMISED:
+    "Ce mot de passe apparaît dans des fuites de données connues : il serait facile à deviner. Choisissez-en un autre.",
   TWO_FACTOR_PASSWORD_REQUIRED:
     "Votre compte est protégé par la double authentification : connectez-vous avec votre passkey ou votre mot de passe.",
   PASSKEY_NOT_FOUND: "Cette passkey n'est liée à aucun compte.",

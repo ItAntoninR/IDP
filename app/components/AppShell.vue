@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  BookOpen,
   Building2,
   Check,
   ChevronRight,
@@ -49,6 +50,7 @@ interface NavLink {
   to: string;
   label: string;
   icon: Component;
+  external?: boolean;
   children?: { to: string; label: string; icon: Component }[];
 }
 
@@ -110,6 +112,7 @@ const sections = computed<{ label: string; links: NavLink[] }[]>(() => [
             { to: "/admin/orgs", label: "Organisations", icon: Building2 },
             { to: "/admin/users", label: "Utilisateurs", icon: Users },
             { to: "/admin/audit", label: "Journal", icon: ScrollText },
+            { to: "/api/auth/reference", label: "Documentation API", icon: BookOpen, external: true },
           ],
         },
       ]
@@ -228,6 +231,8 @@ const initials = computed(() => {
             <NuxtLink
               v-else
               :to="link.to"
+              :external="link.external"
+              :target="link.external ? '_blank' : undefined"
               class="group text-muted-foreground hover:text-foreground flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm transition-colors hover:bg-black/[0.04]"
               exact-active-class="!bg-background !text-foreground !border-border font-medium shadow-sm"
             >

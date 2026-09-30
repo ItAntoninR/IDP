@@ -241,6 +241,8 @@ The image runs `node .output/server/index.mjs` as a non-root user on port 3000 a
 
 ## Security notes
 
+- **Leaked passwords** are refused on sign-up, password change and reset (Better Auth `haveIBeenPwned`: only the first 5 characters of the password's SHA-1 are sent to the service). If the service cannot be reached, the password is refused rather than accepted unchecked.
+- **API reference** at `/api/auth/reference` (Better Auth OpenAPI, Scalar UI) and the raw schema at `/api/auth/open-api/generate-schema`, served to global admins only (404 for everyone else). It covers the Better Auth endpoints; apps integrate through OIDC discovery.
 - Cookies are `httpOnly`, `sameSite=lax`, and `Secure` over https.
 - CORS and trusted origins are limited to the app origins.
 - Strict CSP (`script-src 'self'` plus hashes of Nuxt's inline boot scripts), `frame-ancestors 'none'`, HSTS over https.
