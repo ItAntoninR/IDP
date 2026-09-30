@@ -8,6 +8,7 @@ import { APP_PERMISSIONS, roles as staticRoles, type AppId } from "../../../shar
 export const ACCESS_CLAIM = `${env.CLAIMS_NAMESPACE}/access`;
 export const IMPERSONATED_BY_CLAIM = `${env.CLAIMS_NAMESPACE}/impersonated_by`;
 export const ORGANIZATION_CLAIM = `${env.CLAIMS_NAMESPACE}/org_id`;
+export const ORGANIZATION_NAME_CLAIM = `${env.CLAIMS_NAMESPACE}/org_name`;
 
 export type AccessMap = Record<string, string[]>;
 
@@ -112,5 +113,19 @@ export async function buildAccessTokenClaims(info: {
       error_description: "The selected organization does not grant access to this application",
     });
   }
-  return { [ACCESS_CLAIM]: { [organizationId]: permissions }, [ORGANIZATION_CLAIM]: organizationId };
+  const [[user], [organization]] = await Promise.all([
+    db.select({ name: schema.user.name, email: schema.user.email }).from(schema.user).where(eq(schema.user.id, info.user.id)).limit(1),
+    db
+      .select({ name: schema.organization.name })
+      .from(schema.organization)
+      .where(eq(schema.organization.id, organizationId))
+      .limit(1),
+  ]);
+  return {
+    [ACCESS_CLAIM]: { [organizationId]: permissions },
+    [ORGANIZATION_CLAIM]: organizationId,
+    [ORGANIZATION_NAME_CLAIM]: organization?.name ?? null,
+    name: user?.name ?? null,
+    email: user?.email ?? null,
+  };
 }

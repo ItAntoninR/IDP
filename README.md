@@ -194,10 +194,12 @@ Les jetons d'accès sont des JWT signés en ES256.
 | `iss` | `https://auth.mondomaine.fr/api/auth` |
 | `aud` | La ressource demandée (`DATAHUB_RESOURCE` ou `APP_RESOURCE`). Avec le scope `openid`, `aud` est un tableau qui contient aussi l'endpoint userinfo. **Vérifiez que `aud` contient votre ressource.** Un jeton du Data hub ne contient jamais la ressource de l'App, et inversement. |
 | `sub` | Identifiant de l'utilisateur. |
+| `name` / `email` | Nom et email de l'utilisateur, pour personnaliser les écrans. |
 | `azp` | Identifiant du client. |
 | `scope` | Scopes accordés. |
 | `exp` / `iat` | Durée de vie de 10 minutes par défaut. |
 | `https://mondomaine.fr/org_id` | L'**unique** organisation pour laquelle ce jeton agit, choisie par l'utilisateur pendant l'autorisation. |
+| `https://mondomaine.fr/org_name` | Nom de cette organisation. Un changement de nom apparaît au prochain renouvellement du jeton. |
 | `https://mondomaine.fr/access` | Objet `{ "<orgId>": ["access", "export", ...] }` avec une seule entrée, l'organisation `org_id` : les permissions de l'utilisateur sur **cette** application dans cette organisation, après intersection des permissions de ses rôles avec les applications autorisées pour l'organisation. |
 | `https://mondomaine.fr/impersonated_by` | Identifiant de l'administrateur. Présent uniquement pendant une impersonation. |
 
@@ -208,11 +210,14 @@ Exemple de contenu pour le Data hub :
   "iss": "https://auth.mondomaine.fr/api/auth",
   "aud": ["https://datahub.mondomaine.fr", "https://auth.mondomaine.fr/api/auth/oauth2/userinfo"],
   "sub": "u_123",
+  "name": "Olivia Owner",
+  "email": "owner@acme.fr",
   "azp": "DwLnMccQeKrJRKEkOaFwWrHzxmxsdYTv",
   "scope": "openid profile email offline_access",
   "iat": 1790600000,
   "exp": 1790600600,
   "https://mondomaine.fr/org_id": "org_acme",
+  "https://mondomaine.fr/org_name": "Acme",
   "https://mondomaine.fr/access": {
     "org_acme": ["access", "export", "admin"]
   }

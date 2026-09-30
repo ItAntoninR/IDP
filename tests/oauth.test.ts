@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { decodeJwt } from "jose";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../server/lib/db/index";
-import { ACCESS_CLAIM, buildAccessTokenClaims, IMPERSONATED_BY_CLAIM, ORGANIZATION_CLAIM } from "../server/lib/auth/access-claims";
+import {
+  ACCESS_CLAIM,
+  buildAccessTokenClaims,
+  IMPERSONATED_BY_CLAIM,
+  ORGANIZATION_CLAIM,
+  ORGANIZATION_NAME_CLAIM,
+} from "../server/lib/auth/access-claims";
 import { seedClients } from "../server/lib/oauth/clients";
 import {
   agent,
@@ -66,6 +72,21 @@ describe("access tokens", () => {
     expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "admin"] });
     expect(payload[IMPERSONATED_BY_CLAIM]).toBeUndefined();
     expect(payload.exp! - payload.iat!).toBe(600);
+  });
+
+  it("names the user and the organization so apps can personalize their screens", async () => {
+    const clients = await seedTestClients();
+    const { owner, organizationId, ownerEmail } = await setupOrgWithOwner(["datahub"]);
+
+    const first = await verifyJwt((await getAccessToken(owner, clients.datahub)).body.access_token, DATAHUB);
+    const [org] = await db.select().from(schema.organization).where(eq(schema.organization.id, organizationId));
+    expect(first[ORGANIZATION_CLAIM]).toBe(organizationId);
+    expect(first[ORGANIZATION_NAME_CLAIM]).toBe(org!.name);
+    expect(first).toMatchObject({ name: "Invited", email: ownerEmail });
+
+    await owner.post("/api/auth/organization/update").send({ organizationId, data: { name: "Acme Renamed" } }).expect(200);
+    const second = await verifyJwt((await getAccessToken(owner, clients.datahub)).body.access_token, DATAHUB);
+    expect(second[ORGANIZATION_NAME_CLAIM]).toBe("Acme Renamed");
   });
 
   it("rejects a token issued for one app when verified by the other", async () => {
