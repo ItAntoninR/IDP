@@ -1,25 +1,27 @@
-# Auth service
+# Service d'authentification
 
-Central identity provider (OAuth 2.1 / OpenID Connect) for the **Data hub** and the **App**. It owns users, organizations, roles and access; the client apps only verify the JWTs it issues.
+Fournisseur d'identité central (OAuth 2.1 / OpenID Connect) pour le **Data hub** et l'**App**. Il gère les utilisateurs, les organisations, les rôles et les accès ; les applications se contentent de vérifier les JWT qu'il émet.
 
-- **Stack**: Nuxt 4 (Nitro API + Vue pages), Better Auth 1.7, PostgreSQL + Drizzle, shadcn-vue, Vitest.
-- **Clients**: sign-in (password, magic link, Google), invitations, organization management, account page.
-- **Staff**: sign-in through Authentik only, organization and user administration, impersonation, audit log.
+- **Technique** : Nuxt 4 (API Nitro + pages Vue), Better Auth 1.7, PostgreSQL + Drizzle, shadcn-vue, Vitest.
+- **Clients** : connexion (mot de passe, lien par email, passkey, Google, Microsoft), invitations, gestion de l'organisation, espace « Mon compte ».
+- **Équipe** : connexion uniquement via Authentik, administration des organisations et des utilisateurs, impersonation, journal d'audit, archives.
 
-## Layout
+## Organisation du code
 
 ```
-app/                 Vue pages, layouts, components (shadcn-vue in app/components/ui)
-server/api/          Nitro handlers (Better Auth on api/auth/[...all].ts, admin, account, public)
-server/lib/          Framework-agnostic core: Better Auth config, hooks, claims, Drizzle, emails
-shared/permissions.ts  Permission catalogue shared by the server and the pages
-scripts/             migrate, seed:clients, seed:demo
-tests/               Vitest + Supertest against the built server
+app/                 Pages, layouts et composants Vue (shadcn-vue dans app/components/ui)
+server/api/          Routes Nitro (Better Auth sur api/auth/[...all].ts, admin, account, public)
+server/lib/          Cœur indépendant du framework : configuration Better Auth, hooks, claims, Drizzle, emails
+server/plugins/      Migrations au démarrage, en-têtes de sécurité, purge quotidienne
+shared/permissions.ts  Catalogue des permissions partagé entre le serveur et les pages
+scripts/             migrate, seed:clients, seed:demo, oauth:token
+tests/               Vitest + Supertest sur le serveur compilé
+docs/RGPD.md         Données personnelles, durées de conservation et droits des personnes
 ```
 
-## Getting started
+## Démarrage
 
-Requirements: Node 22.18+, pnpm 9, Docker.
+Prérequis : Node 22.18+, pnpm 9, Docker.
 
 ```bash
 docker compose up -d
@@ -29,7 +31,7 @@ docker compose up -d
 cp .env.example .env
 ```
 
-Set `BETTER_AUTH_SECRET` in `.env` (`openssl rand -base64 32`), then:
+Renseignez `BETTER_AUTH_SECRET` dans `.env` (`openssl rand -base64 32`), puis :
 
 ```bash
 pnpm install
@@ -47,157 +49,159 @@ pnpm seed:clients
 pnpm dev
 ```
 
-`docker compose up -d` starts Postgres, Mailpit and a local Authentik. The service runs on http://localhost:3000, Mailpit on http://localhost:8025 and Authentik on http://localhost:9000. `pnpm seed:demo` adds demo organizations and accounts (local only; it prints their credentials).
+`docker compose up -d` démarre Postgres, Mailpit et un Authentik local. Le service tourne sur http://localhost:3000, Mailpit sur http://localhost:8025 et Authentik sur http://localhost:9000. `pnpm seed:demo` ajoute des organisations et des comptes de démonstration (en local uniquement ; il affiche leurs identifiants).
 
-### Local Authentik
+### Authentik en local
 
-The compose file ships an Authentik instance provisioned by a blueprint ([docker/authentik/blueprints/auth-service.yaml](docker/authentik/blueprints/auth-service.yaml)): an OIDC provider and application `auth-service`, a `staff` group bound to the application, and two test users. `.env.example` already contains the matching `AUTHENTIK_*` values.
+Le fichier compose fournit une instance Authentik configurée par un blueprint ([docker/authentik/blueprints/auth-service.yaml](docker/authentik/blueprints/auth-service.yaml)) : un fournisseur OIDC et une application `auth-service`, un groupe `staff` lié à l'application et deux utilisateurs de test. `.env.example` contient déjà les valeurs `AUTHENTIK_*` correspondantes.
 
-| Account | Password | Expected result with "Continuer avec Authentik" on `/sign-in` |
+| Compte | Mot de passe | Résultat attendu avec « Continuer avec Authentik » sur `/sign-in` |
 |---|---|---|
-| `staff` | `staff-password-123` | Signed in as a global admin. |
-| `outsider` | `outsider-password-123` | Rejected by Authentik ("Permission refusée"): not in `staff`. |
-| `akadmin` (Authentik admin UI) | `authentik-admin-123` | Authentik administration at http://localhost:9000/if/admin/. |
+| `staff` | `staff-password-123` | Connecté en administrateur global. |
+| `outsider` | `outsider-password-123` | Refusé par Authentik (« Permission refusée ») : il n'est pas dans `staff`. |
+| `akadmin` (administration Authentik) | `authentik-admin-123` | Administration d'Authentik sur http://localhost:9000/if/admin/. |
 
-Authentik takes about a minute to start the first time. Start the auth service after it is up: the provider is discovered when the service boots, so restart `pnpm dev` if Authentik was not ready yet. These credentials are for local development only.
+Authentik met environ une minute à démarrer la première fois. Lancez le service d'authentification une fois Authentik prêt : le fournisseur est découvert au démarrage du service, relancez donc `pnpm dev` si Authentik n'était pas encore disponible. Ces identifiants servent uniquement au développement local.
 
 ### Scripts
 
 | Script | Description |
 |---|---|
-| `pnpm dev` | Nuxt dev server (API + pages). |
-| `pnpm build` / `pnpm start` | Production build in `.output/`, then `node .output/server/index.mjs`. |
-| `pnpm migrate` | Apply the SQL migrations. |
-| `pnpm auth:generate` then `pnpm db:generate` | After changing the Better Auth config: regenerate `server/lib/db/auth-schema.ts`, then create a migration. |
-| `pnpm seed:clients` | Register or update the Data hub and App OAuth clients (idempotent). |
-| `pnpm seed:demo` | Demo data for local development. |
-| `pnpm oauth:token` | Runs the whole OAuth flow for a user and prints the access token and its payload (local testing). |
-| `pnpm test` | Build, start the server on port 3100 and run the tests (needs Postgres and Mailpit). `SKIP_BUILD=1` reuses the last build. |
-| `pnpm typecheck` | Nuxt (app + server) and scripts/tests. |
+| `pnpm dev` | Serveur de développement Nuxt (API + pages). |
+| `pnpm build` / `pnpm start` | Build de production dans `.output/`, puis `node .output/server/index.mjs`. |
+| `pnpm migrate` | Applique les migrations SQL. |
+| `pnpm auth:generate` puis `pnpm db:generate` | Après une modification de la configuration Better Auth : régénère `server/lib/db/auth-schema.ts`, puis crée une migration. |
+| `pnpm seed:clients` | Enregistre ou met à jour les clients OAuth du Data hub et de l'App (idempotent). |
+| `pnpm seed:demo` | Données de démonstration pour le développement local. |
+| `pnpm oauth:token` | Déroule tout le parcours OAuth pour un utilisateur et affiche le jeton d'accès et son contenu (tests en local). |
+| `pnpm test` | Compile, démarre le serveur sur le port 3100 et lance les tests (Postgres et Mailpit requis). `SKIP_BUILD=1` réutilise le dernier build. |
+| `pnpm typecheck` | Nuxt (app + serveur), puis scripts et tests. |
 
-## Getting a real access token
+## Obtenir un vrai jeton d'accès
 
-The whole OAuth flow can be run locally for a demo user, to inspect the token an app would receive.
+Le parcours OAuth complet peut être déroulé en local pour un utilisateur de démonstration, afin d'examiner le jeton que recevrait une application.
 
-1. Register the clients and keep their secrets for the token script:
+1. Enregistrez les clients et gardez leurs secrets pour le script :
    ```bash
    pnpm seed:clients --rotate-secrets
    ```
-   Copy the two `client_secret` values into `.env` as `DATAHUB_CLIENT_SECRET` and `APP_CLIENT_SECRET`.
-2. Get a real access token (options: `--app datahub|app`, `--user`, `--password`, `--org <slug>`):
+   Copiez les deux valeurs `client_secret` dans `.env`, dans `DATAHUB_CLIENT_SECRET` et `APP_CLIENT_SECRET`.
+2. Obtenez un jeton d'accès (options : `--app datahub|app`, `--user`, `--password`, `--org <slug>`) :
    ```bash
    pnpm oauth:token --app datahub --user analyst@demo.test
    ```
-   A user without access to the app gets `403 access_denied` and no token.
+   Un utilisateur sans accès à l'application reçoit `403 access_denied` et aucun jeton.
 
-## Environment variables
+## Variables d'environnement
 
-Every variable is validated with zod at startup; the server refuses to start on invalid configuration. See [.env.example](.env.example) for the full, commented list.
+Chaque variable est validée avec zod au démarrage ; le serveur refuse de démarrer si la configuration est invalide. La liste complète figure dans [.env.example](.env.example).
 
-| Variable | Purpose |
+| Variable | Rôle |
 |---|---|
-| `AUTH_BASE_URL` | Public URL, e.g. `https://auth.mondomaine.fr`. The issuer is `${AUTH_BASE_URL}/api/auth`. `https` enables `Secure` cookies. |
-| `BETTER_AUTH_SECRET` | Signing and encryption secret (32+ characters). |
-| `DATABASE_URL` | PostgreSQL connection string. |
-| `DATAHUB_URL`, `APP_URL` | App origins, used for CORS and trusted origins. |
-| `DATAHUB_RESOURCE`, `APP_RESOURCE` | Resource identifiers, i.e. the `aud` of each app's tokens. |
-| `DATAHUB_REDIRECT_URIS`, `APP_REDIRECT_URIS` | OAuth redirect URIs, comma-separated. |
-| `CLAIMS_NAMESPACE` | Prefix of the custom claims (default `https://mondomaine.fr`). |
-| `ACCESS_TOKEN_TTL_SECONDS` | Access token lifetime (default 600). |
-| `SMTP_*`, `MAIL_FROM` | Outgoing email. |
-| `AUTHENTIK_ISSUER`, `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET` | Staff sign-in. |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional Google sign-in. |
-| `RATE_LIMIT_ENABLED`, `TRUSTED_IP_HEADER` | Rate limiting and the header carrying the real client IP behind your proxy. |
-| `MIGRATE_ON_START`, `MIGRATIONS_DIR` | Apply migrations when the server boots. |
+| `AUTH_BASE_URL` | URL publique, par exemple `https://auth.mondomaine.fr`. L'émetteur des jetons est `${AUTH_BASE_URL}/api/auth`. En `https`, les cookies sont `Secure`. |
+| `BETTER_AUTH_SECRET` | Secret de signature et de chiffrement (32 caractères minimum). |
+| `DATABASE_URL` | Chaîne de connexion PostgreSQL. |
+| `DATAHUB_URL`, `APP_URL` | Origines des applications, pour le CORS et les origines de confiance. |
+| `DATAHUB_RESOURCE`, `APP_RESOURCE` | Identifiants de ressource, c'est-à-dire le `aud` des jetons de chaque application. |
+| `DATAHUB_REDIRECT_URIS`, `APP_REDIRECT_URIS` | URI de redirection OAuth, séparées par des virgules. |
+| `CLAIMS_NAMESPACE` | Préfixe des claims personnalisés (par défaut `https://mondomaine.fr`). |
+| `ACCESS_TOKEN_TTL_SECONDS` | Durée de vie du jeton d'accès (600 par défaut). |
+| `SMTP_*`, `MAIL_FROM` | Envoi des emails. |
+| `AUTHENTIK_ISSUER`, `AUTHENTIK_CLIENT_ID`, `AUTHENTIK_CLIENT_SECRET`, `AUTHENTIK_REQUIRE_MFA` | Connexion de l'équipe. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Connexion Google (facultative). |
+| `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` | Connexion Microsoft (facultative). |
+| `RATE_LIMIT_ENABLED`, `TRUSTED_IP_HEADER` | Limitation des tentatives, et en-tête qui porte la vraie adresse IP derrière votre proxy. |
+| `MIGRATE_ON_START`, `MIGRATIONS_DIR` | Appliquer les migrations au démarrage du serveur. |
+| `RETENTION_ENABLED` | Purge quotidienne des données arrivées au terme de leur durée de conservation (activée par défaut, voir [docs/RGPD.md](docs/RGPD.md)). |
 
-## Authentik setup in production (staff sign-in)
+## Configurer Authentik en production (connexion de l'équipe)
 
-Staff accounts are created on their first Authentik sign-in and get the global `admin` role. Who may sign in is decided in Authentik.
+Les comptes de l'équipe sont créés à leur première connexion via Authentik et reçoivent le rôle global `admin`. C'est Authentik qui décide qui peut se connecter.
 
-1. **Provider**: *Applications → Providers → Create → OAuth2/OpenID Provider*.
-   - Client type: **Confidential**.
-   - Redirect URI (strict): `https://auth.mondomaine.fr/api/auth/callback/authentik`.
-   - Signing key: any RSA/EC certificate (tokens are verified against Authentik's JWKS).
-   - Scopes: `openid`, `email`, `profile`.
-   - Subject mode: based on the user's hashed ID (default).
-2. **Application**: *Applications → Create*, slug `auth-service`, linked to the provider. Set its *Launch URL* to `https://auth.mondomaine.fr/sign-in?provider=authentik`: the application tile and Authentik's "Se reconnecter" button then sign staff in without a second click (`?provider=` starts that provider immediately; a bare `/sign-in` never does).
-3. **Restrict to staff**: on the application, *Policy / Group / User Bindings → Bind existing group* → your staff group. Users outside the group are rejected by Authentik.
-4. Copy the values into `.env`:
-   - `AUTHENTIK_ISSUER=https://authentik.mondomaine.fr/application/o/auth-service` (the provider's *OpenID Configuration Issuer*),
-   - `AUTHENTIK_CLIENT_ID` and `AUTHENTIK_CLIENT_SECRET` from the provider.
+1. **Fournisseur** : *Applications → Providers → Create → OAuth2/OpenID Provider*.
+   - Type de client : **Confidential**.
+   - URI de redirection (strict) : `https://auth.mondomaine.fr/api/auth/callback/authentik`.
+   - Clé de signature : n'importe quel certificat RSA ou EC (les jetons sont vérifiés avec le JWKS d'Authentik).
+   - Scopes : `openid`, `email`, `profile`.
+   - Subject mode : basé sur l'identifiant haché de l'utilisateur (valeur par défaut).
+2. **Application** : *Applications → Create*, slug `auth-service`, liée au fournisseur. Réglez sa *Launch URL* sur `https://auth.mondomaine.fr/sign-in?provider=authentik` : la tuile de l'application et le bouton « Se reconnecter » d'Authentik connectent alors l'équipe sans second clic (`?provider=` lance ce fournisseur immédiatement ; un simple `/sign-in` ne le fait jamais).
+3. **Réserver à l'équipe** : sur l'application, *Policy / Group / User Bindings → Bind existing group* → votre groupe d'équipe. Authentik refuse les utilisateurs hors de ce groupe.
+4. Reportez les valeurs dans `.env` :
+   - `AUTHENTIK_ISSUER=https://authentik.mondomaine.fr/application/o/auth-service` (l'*OpenID Configuration Issuer* du fournisseur),
+   - `AUTHENTIK_CLIENT_ID` et `AUTHENTIK_CLIENT_SECRET`, depuis le fournisseur.
 
-Everyone signs in on `/sign-in`. The last method used on the device (`lastLoginMethod` plugin, 30-day cookie) is offered first as a one-click button; there is no automatic redirect, which would sign staff straight back in after they sign out. Staff pick "Continuer avec Authentik" under "Options de connexion" and land on `/admin/orgs`; Authentik rejects anyone outside the staff group. `/admin/login` redirects to `/sign-in`.
+Tout le monde se connecte sur `/sign-in`. La dernière méthode utilisée sur l'appareil (plugin `lastLoginMethod`, cookie de 30 jours) est proposée en premier, en un clic ; il n'y a pas de redirection automatique, qui reconnecterait l'équipe juste après sa déconnexion. L'équipe choisit « Continuer avec Authentik » dans « Options de connexion » et arrive sur `/admin/orgs` ; Authentik refuse toute personne hors du groupe. `/admin/login` redirige vers `/sign-in`.
 
-### Second factor for staff
+### Second facteur pour l'équipe
 
-Staff MFA is enforced in Authentik, and checked by the service:
+La double authentification de l'équipe est imposée par Authentik et vérifiée par le service :
 
-1. In Authentik, add an **Authenticator Validation** stage to the authentication flow used by the `auth-service` application, bound to the staff group, with *Not configured action* set to **Force the user to configure an authenticator** (TOTP and/or WebAuthn).
-2. Keep `AUTHENTIK_REQUIRE_MFA=true` (the default). The service then rejects any staff sign-in whose Authentik `id_token` has no strong method in `amr` (`mfa`, `otp`, `hwk`, `swk`, `webauthn`…), with the message "Connexion refusée…". Without MFA Authentik sends `amr: ["pwd"]`.
+1. Dans Authentik, ajoutez une étape **Authenticator Validation** au flux d'authentification de l'application `auth-service`, liée au groupe de l'équipe, avec *Not configured action* réglé sur **Force the user to configure an authenticator** (TOTP et/ou WebAuthn).
+2. Gardez `AUTHENTIK_REQUIRE_MFA=true` (valeur par défaut). Le service refuse alors toute connexion de l'équipe dont l'`id_token` Authentik ne contient aucune méthode forte dans `amr` (`mfa`, `otp`, `hwk`, `swk`, `webauthn`…), avec le message « Connexion refusée… ». Sans double authentification, Authentik envoie `amr: ["pwd"]`.
 
-The local Authentik has no MFA stage, so `.env.example` sets `AUTHENTIK_REQUIRE_MFA=false`.
+L'Authentik local n'a pas d'étape de double authentification, c'est pourquoi `.env.example` contient `AUTHENTIK_REQUIRE_MFA=false`.
 
-## Two-factor authentication for clients
+## Double authentification des clients
 
-- **Per organization**: the owner (`Gérer l'organisation` → Sécurité) or an admin (organization detail) can require a second factor. Admin changes are recorded as `organization.security.update`.
-- **Methods**: a passkey (recommended), or an authenticator app (TOTP) with 10 single-use backup codes; "trust this device" skips the TOTP code for 30 days. Either one satisfies the requirement.
-- **Passkeys**: added from "Mon compte", then used with "Continuer avec une passkey" or straight from the email field (browser autofill). They only sign in existing accounts: sign-up stays invitation-only. The relying party is the host of `AUTH_BASE_URL`, so passkeys created on one domain do not work on another.
-- **Enforcement**: a member of an organization that requires it must enable it before anything else (`/security/two-factor`), and no app token is issued until then. Magic links are refused for accounts that have or need a second factor, since they only prove mailbox access. Google sign-in is trusted as is.
-- **Impersonation** bypasses the second factor: the admin acts without the user's code, and the action is audited.
-- **Recovery**: no code by email (it is the password-reset channel, so it would collapse both factors into the mailbox). Users rely on backup codes or a passkey on another device; as a last resort an admin resets their second factors from the user detail ("Réinitialiser la double authentification"): the authenticator app and every passkey are removed, all sessions end, and `user.two_factor.reset` is audited. Staff factors are managed in Authentik.
+- **Par organisation** : le gérant (Paramètres → Sécurité) ou un administrateur (détail de l'organisation) peut exiger un second facteur. Les changements sont tracés (`organization.security.update`).
+- **Méthodes** : une passkey (recommandé), ou une application d'authentification (TOTP) avec 10 codes de secours à usage unique ; « faire confiance à cet appareil » évite le code TOTP pendant 30 jours. L'une ou l'autre satisfait l'exigence.
+- **Passkeys** : ajoutées depuis « Mon compte », puis utilisées avec « Continuer avec une passkey » ou directement depuis le champ email (saisie automatique du navigateur). Elles ne connectent que des comptes existants : l'inscription reste sur invitation. Le domaine de rattachement est celui d'`AUTH_BASE_URL` : une passkey créée sur un domaine ne fonctionne pas sur un autre.
+- **Application** : un membre d'une organisation qui l'exige doit l'activer avant toute autre action (`/security/two-factor`), et aucun jeton d'application n'est émis d'ici là. Les liens par email sont refusés aux comptes qui ont ou doivent avoir un second facteur, car ils ne prouvent que l'accès à la boîte mail. La connexion Google est acceptée telle quelle.
+- **Impersonation** : elle contourne le second facteur ; l'administrateur agit sans le code de l'utilisateur, et l'action est tracée.
+- **Récupération** : pas de code par email (c'est le canal de réinitialisation du mot de passe, les deux facteurs se réduiraient à la boîte mail). Les utilisateurs utilisent leurs codes de secours ou une passkey sur un autre appareil ; en dernier recours, un administrateur réinitialise leurs seconds facteurs depuis la fiche utilisateur (« Réinitialiser la double authentification ») : l'application d'authentification et toutes les passkeys sont supprimées, toutes les sessions sont fermées, et `user.two_factor.reset` est tracé. Les facteurs de l'équipe se gèrent dans Authentik.
 
-## Microsoft (optional)
+## Microsoft (facultatif)
 
-Create an **App registration** in the Azure portal (Microsoft Entra ID → App registrations → New registration):
+Créez une **App registration** dans le portail Azure (Microsoft Entra ID → App registrations → New registration) :
 
-1. *Supported account types*: **Accounts in any organizational directory** (multitenant, work accounts only).
-2. *Redirect URI* (Web): `https://auth.mondomaine.fr/api/auth/callback/microsoft`.
-3. *Certificates & secrets* → new client secret.
-4. Optional but recommended: *Token configuration* → add the optional claim `verified_primary_email` to the ID token, so invited people can sign up directly with Microsoft.
+1. *Supported account types* : **Accounts in any organizational directory** (multi-tenant, comptes professionnels uniquement).
+2. *Redirect URI* (Web) : `https://auth.mondomaine.fr/api/auth/callback/microsoft`.
+3. *Certificates & secrets* → nouveau secret client.
+4. Facultatif mais recommandé : *Token configuration* → ajoutez le claim optionnel `verified_primary_email` à l'ID token, pour que les personnes invitées puissent s'inscrire directement avec Microsoft.
 
-Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET` (`MICROSOFT_TENANT_ID` defaults to `organizations`). Entra lets each company's admins set any email on their users, so Microsoft is not a trusted provider: an existing account is linked from "Mon compte → Profil" (same email), and a new account is created through Microsoft only when Microsoft verified the email; otherwise the person accepts the invitation first, then links Microsoft.
+Renseignez `MICROSOFT_CLIENT_ID` et `MICROSOFT_CLIENT_SECRET` (`MICROSOFT_TENANT_ID` vaut `organizations` par défaut). Entra permet aux administrateurs de chaque entreprise de donner n'importe quel email à leurs utilisateurs : Microsoft n'est donc pas un fournisseur de confiance. Un compte existant se lie depuis « Mon compte → Profil » (même email), et un nouveau compte n'est créé via Microsoft que si Microsoft a vérifié l'email ; sinon, la personne accepte d'abord l'invitation, puis lie Microsoft.
 
-## Google (optional)
+## Google (facultatif)
 
-Create an OAuth client in Google Cloud with the redirect URI `https://auth.mondomaine.fr/api/auth/callback/google` and set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Google accounts are linked automatically to an existing account with the same email; new Google users still need a pending invitation.
+Créez un client OAuth dans Google Cloud avec l'URI de redirection `https://auth.mondomaine.fr/api/auth/callback/google` et renseignez `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Un compte Google est lié automatiquement à un compte existant ayant le même email ; un nouvel utilisateur Google a quand même besoin d'une invitation en attente.
 
-## Registering the client apps
+## Enregistrer les applications clientes
 
 ```bash
 pnpm seed:clients
 ```
 
-The script creates (or updates) one confidential client per app, trusted (no consent screen), allowed to request **only its own resource**, with the `authorization_code` and `refresh_token` grants. It prints each `client_id` and, on creation, the `client_secret`. Secrets are hashed at rest; `pnpm seed:clients --rotate-secrets` issues new ones.
+Le script crée (ou met à jour) un client confidentiel par application, de confiance (sans écran de consentement), autorisé à demander **uniquement sa propre ressource**, avec les grants `authorization_code` et `refresh_token`. Il affiche chaque `client_id` et, à la création, le `client_secret`. Les secrets sont stockés hachés ; `pnpm seed:clients --rotate-secrets` en émet de nouveaux.
 
-Client settings for the apps:
+Réglages à utiliser dans les applications :
 
-| Setting | Value |
+| Réglage | Valeur |
 |---|---|
-| Discovery | `https://auth.mondomaine.fr/api/auth/.well-known/openid-configuration` |
-| Authorization endpoint | `https://auth.mondomaine.fr/api/auth/oauth2/authorize` |
-| Token endpoint | `https://auth.mondomaine.fr/api/auth/oauth2/token` (HTTP Basic client authentication) |
+| Découverte | `https://auth.mondomaine.fr/api/auth/.well-known/openid-configuration` |
+| Autorisation | `https://auth.mondomaine.fr/api/auth/oauth2/authorize` |
+| Jeton | `https://auth.mondomaine.fr/api/auth/oauth2/token` (authentification du client en HTTP Basic) |
 | JWKS | `https://auth.mondomaine.fr/api/auth/jwks` |
-| PKCE | Required (`S256`) |
+| PKCE | Obligatoire (`S256`) |
 | Scopes | `openid profile email offline_access` |
-| `resource` parameter | Required, on both the authorize and token requests: the app's own resource. |
+| Paramètre `resource` | Obligatoire, sur la demande d'autorisation comme sur la demande de jeton : la ressource de l'application. |
 
-## Access token contract
+## Contenu des jetons d'accès
 
-Access tokens are JWTs signed with ES256.
+Les jetons d'accès sont des JWT signés en ES256.
 
-| Claim | Value |
+| Claim | Valeur |
 |---|---|
 | `iss` | `https://auth.mondomaine.fr/api/auth` |
-| `aud` | The requested resource (`DATAHUB_RESOURCE` or `APP_RESOURCE`). With the `openid` scope, `aud` is an array that also contains the userinfo endpoint. **Check that `aud` contains your resource.** A Data hub token never contains the App resource, and the other way round. |
-| `sub` | User id. |
-| `azp` | Client id. |
-| `scope` | Granted scopes. |
-| `exp` / `iat` | Lifetime of 10 minutes by default. |
-| `https://mondomaine.fr/org_id` | The **single** organization this token acts for, chosen by the user during authorization. |
-| `https://mondomaine.fr/access` | Object `{ "<orgId>": ["access", "export", ...] }` with exactly one entry, the `org_id` organization: the user's permissions on **this** app there, after intersecting the role permissions with the organization's allowed apps. |
-| `https://mondomaine.fr/impersonated_by` | Admin user id. Present only while an admin is impersonating the user. |
+| `aud` | La ressource demandée (`DATAHUB_RESOURCE` ou `APP_RESOURCE`). Avec le scope `openid`, `aud` est un tableau qui contient aussi l'endpoint userinfo. **Vérifiez que `aud` contient votre ressource.** Un jeton du Data hub ne contient jamais la ressource de l'App, et inversement. |
+| `sub` | Identifiant de l'utilisateur. |
+| `azp` | Identifiant du client. |
+| `scope` | Scopes accordés. |
+| `exp` / `iat` | Durée de vie de 10 minutes par défaut. |
+| `https://mondomaine.fr/org_id` | L'**unique** organisation pour laquelle ce jeton agit, choisie par l'utilisateur pendant l'autorisation. |
+| `https://mondomaine.fr/access` | Objet `{ "<orgId>": ["access", "export", ...] }` avec une seule entrée, l'organisation `org_id` : les permissions de l'utilisateur sur **cette** application dans cette organisation, après intersection des permissions de ses rôles avec les applications autorisées pour l'organisation. |
+| `https://mondomaine.fr/impersonated_by` | Identifiant de l'administrateur. Présent uniquement pendant une impersonation. |
 
-Example payload for the Data hub:
+Exemple de contenu pour le Data hub :
 
 ```json
 {
@@ -215,42 +219,45 @@ Example payload for the Data hub:
 }
 ```
 
-Guarantees:
+Garanties :
 
-- **One organization per token**: a user who belongs to several organizations picks one on every authorization (`/select-organization`, which only lists the organizations granting access to the requested app and skips itself when there is only one). Refresh tokens keep that organization. Data of two clients can therefore never be mixed in one app session; to switch, the app restarts the authorization flow.
-- **No access, no token**: if no organization grants `access` to the requested app, the token endpoint answers `403 access_denied` and issues nothing. The same applies to refresh requests, so removing a member, changing a role, lowering an organization's allowed apps or banning a user takes effect within one access-token lifetime.
-- **Machine-to-machine tokens** (no user) carry no custom claim.
-- **Impersonation** sessions never receive refresh tokens.
-- Permission catalogue per app: `datahub: access, export, admin` and `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)).
+- **Une organisation par jeton** : un utilisateur membre de plusieurs organisations en choisit une à chaque autorisation (`/select-organization`, qui ne liste que les organisations donnant accès à l'application demandée et se passe d'elle-même s'il n'y en a qu'une). Les jetons de renouvellement gardent cette organisation. Les données de deux clients ne peuvent donc jamais se mélanger dans une même session d'application ; pour changer d'organisation, l'application relance l'autorisation.
+- **Pas d'accès, pas de jeton** : si aucune organisation ne donne `access` à l'application demandée, l'endpoint de jeton répond `403 access_denied` et n'émet rien. C'est vrai aussi au renouvellement : retirer un membre, changer un rôle, réduire les applications autorisées d'une organisation ou suspendre un utilisateur prend effet en une durée de vie de jeton d'accès.
+- **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé.
+- **Sessions d'impersonation** : jamais de jeton de renouvellement.
+- Catalogue des permissions par application : `datahub: access, export, admin` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)).
 
+## Modèle d'accès
 
-## Access model
+- **Organisations** : créées par l'équipe (`/admin/orgs`) avec un nom, un slug, les applications autorisées (plafond `apps`) et l'email du futur gérant, qui reçoit une invitation. L'équipe peut ensuite inviter une personne avec n'importe quel rôle de l'organisation. Les membres de l'équipe ne deviennent jamais membres.
+- **Rôles** : `owner` (gérant : membres, invitations, rôles, paramètres ; toutes les permissions d'application) et `member` (aucune permission d'application). Les gérants créent d'autres rôles depuis leur espace ; ils ne peuvent choisir que des permissions sur les applications autorisées pour leur organisation, et le serveur refuse tout ce qui dépasse ce plafond.
+- **Gérants** : ils modifient le nom et le logo de l'organisation (Paramètres) et peuvent transférer leur rôle à un autre membre. L'organisation garde toujours au moins un gérant.
+- **Membres** : ils peuvent quitter une organisation depuis « Mon compte → Profil ».
+- **Inscription sur invitation uniquement**, quelle que soit la méthode (mot de passe, lien par email, Google, Microsoft), sauf pour l'équipe venant d'Authentik.
+- **Journal d'audit** (`/admin/audit`) : impersonation, création, modification et suppression d'organisations, plafonds, rôles, invitations, changements de rôle, retraits et départs de membres, transferts du rôle de gérant, suspensions, suppressions et exports de comptes.
 
-- **Organizations** are created by staff (`/admin/orgs`) with a name, a slug, the allowed apps (`apps` ceiling) and the future owner's email; an `owner` invitation is sent. Staff never become members.
-- **Roles**: `owner` (manages members, invitations and roles; every app permission) and `member` (no app permission). Owners create other roles at `/org`; they can only pick permissions of the apps allowed for their organization, and the server rejects anything outside that ceiling.
-- **Sign-up is by invitation only**, whatever the method (password, magic link, Google), except staff coming from Authentik.
-- **Audit log** (`/admin/audit`): impersonation start/stop, organization creation and ceiling changes, role changes, invitations, member role changes and removals, bans.
-
-## Deployment
+## Déploiement
 
 ```bash
 docker build -t auth-service .
 ```
 
-The image runs `node .output/server/index.mjs` as a non-root user on port 3000 and ships the migrations in `/app/migrations` (`MIGRATE_ON_START=true` applies them at boot). Put it behind a TLS-terminating reverse proxy that sets the header named in `TRUSTED_IP_HEADER`. Run `pnpm seed:clients` from a checkout pointed at the production database to register the apps.
+L'image lance `node .output/server/index.mjs` avec un utilisateur non root sur le port 3000 et embarque les migrations dans `/app/migrations` (`MIGRATE_ON_START=true` les applique au démarrage). Placez-la derrière un reverse proxy qui termine le TLS et renseigne l'en-tête indiqué dans `TRUSTED_IP_HEADER`. Lancez `pnpm seed:clients` depuis une copie du dépôt pointée sur la base de production pour enregistrer les applications.
 
-## Security notes
+## Sécurité
 
-- **Leaked passwords** are refused on sign-up, password change and reset (Better Auth `haveIBeenPwned`: only the first 5 characters of the password's SHA-1 are sent to the service). If the service cannot be reached, the password is refused rather than accepted unchecked.
-- **API reference** at `/api/auth/reference` (Better Auth OpenAPI, Scalar UI) and the raw schema at `/api/auth/open-api/generate-schema`, served to global admins only (404 for everyone else). It covers the Better Auth endpoints; apps integrate through OIDC discovery.
-- **Security alerts** by email: sign-in from a new browser (recognized by a long-lived random `auth_device` cookie, stored hashed in `known_device`; the first browser of an account and impersonation sessions are silent), password changed or reset, two-factor enabled or disabled, passkey added or removed, and second factors reset by support.
-- **Account deletion** (GDPR): self-service from the profile page, confirmed by an emailed link valid 1 hour; admins can also delete an account at the user's request (`DELETE /api/admin/users/:id`, Better Auth's `/admin/remove-user` is disabled). Deletion is refused for the only owner of an organization (ownership must be transferred first) and for staff accounts, which live in Authentik. Audit entries keep the user id but no email.
-- **Data export** (GDPR right of access) is admin-only for now: `GET /api/admin/users/:id/export` returns a JSON file (profile, sign-in methods, passkeys, known devices, sessions, organizations, invitations, authorized apps, activity). Secrets (password hash, 2FA secrets, passkey keys, tokens) are never included; each export is audited and the user is notified by email.
-- **Organization deletion** is admin-only and requires typing the slug; it removes members, invitations, roles, consents and refresh tokens bound to the organization.
-- **Organization logos** are PNG, JPEG or WebP data URLs (resized to 256 px in the browser, 200 KB max, never SVG), served from `/api/public/organizations/:id/logo?v=<hash>` with immutable caching.
-- Cookies are `httpOnly`, `sameSite=lax`, and `Secure` over https.
-- CORS and trusted origins are limited to the app origins.
-- Strict CSP (`script-src 'self'` plus hashes of Nuxt's inline boot scripts), `frame-ancestors 'none'`, HSTS over https.
-- Better Auth rate limiting is stored in the database, with stricter limits on sign-in, sign-up, magic links, password reset and invitations.
-- Every custom admin endpoint checks the global `admin` role on the server; organization operations go through Better Auth's permission checks.
-- Logs are JSON and redact any key that looks like a secret (tokens, passwords, cookies).
+- **Mots de passe ayant fuité** : refusés à l'inscription, au changement et à la réinitialisation (plugin Better Auth `haveIBeenPwned` : seuls les 5 premiers caractères de l'empreinte SHA-1 du mot de passe sont envoyés au service). Si le service est injoignable, le mot de passe est refusé plutôt qu'accepté sans vérification.
+- **Documentation de l'API** sur `/api/auth/reference` (OpenAPI de Better Auth, interface Scalar) et schéma brut sur `/api/auth/open-api/generate-schema`, réservés aux administrateurs (404 pour tous les autres). Elle couvre les endpoints Better Auth ; les applications s'intègrent via la découverte OIDC.
+- **Alertes de sécurité** par email : connexion depuis un nouveau navigateur (reconnu par un cookie aléatoire `auth_device`, stocké haché dans `known_device` ; le premier navigateur d'un compte et les sessions d'impersonation ne déclenchent pas d'alerte), mot de passe modifié ou réinitialisé, double authentification activée ou désactivée, passkey ajoutée ou supprimée, seconds facteurs réinitialisés par le support, export des données.
+- **RGPD** : les données personnelles, les durées de conservation, la suppression et les droits des personnes sont décrits dans [docs/RGPD.md](docs/RGPD.md).
+- **Suppression de compte** : depuis la page Profil, confirmée par un lien envoyé par email et valable 1 heure (`POST /api/account/deletion`, puis `/api/account/deletion/confirm`), ou par un administrateur à la demande de la personne (`DELETE /api/admin/users/:id`). Le compte est **pseudonymisé** : l'identifiant reste pour les applications, tout le reste est effacé. Une archive (identité et historique de connexion) est gardée 1 an pour les réquisitions des autorités, consultable depuis `/admin/archives`. La suppression est refusée au seul gérant d'une organisation et aux comptes de l'équipe. Les routes de suppression de Better Auth (`/delete-user`, `/admin/remove-user`) sont désactivées.
+- **Export des données** (droit d'accès), réservé aux administrateurs pour l'instant : `GET /api/admin/users/:id/export` renvoie un fichier JSON (profil, moyens de connexion, passkeys, appareils connus, sessions, organisations, invitations, applications autorisées, activité). Les secrets (empreinte du mot de passe, secrets de 2FA, clés de passkey, jetons) ne sont jamais inclus ; chaque export est tracé et la personne est prévenue par email.
+- **Durées de conservation** appliquées chaque jour par une tâche qui ne tourne que sur un serveur à la fois : journal d'audit 1 an, appareils connus 13 mois sans activité, archives 1 an, invitations et liens expirés, comptes inactifs supprimés après 3 ans (avec un avertissement 30 jours avant).
+- **Suppression d'organisation** : réservée aux administrateurs, avec saisie du slug pour confirmer ; elle supprime les membres, les invitations, les rôles, ainsi que les consentements et jetons de renouvellement liés à l'organisation.
+- **Logos des organisations** : images PNG, JPEG ou WebP (réduites à 256 px dans le navigateur, 200 Ko maximum, jamais de SVG), servies par `/api/public/organizations/:id/logo?v=<empreinte>` avec un cache permanent.
+- Les cookies sont `httpOnly`, `sameSite=lax` et `Secure` en HTTPS.
+- Le CORS et les origines de confiance sont limités aux origines des applications.
+- CSP stricte (`script-src 'self'` plus les empreintes des scripts de démarrage de Nuxt), `frame-ancestors 'none'`, HSTS en HTTPS.
+- La limitation des tentatives de Better Auth est stockée en base, avec des limites plus strictes sur la connexion, l'inscription, les liens par email, la réinitialisation du mot de passe et les invitations.
+- Chaque route d'administration vérifie le rôle global `admin` côté serveur ; les opérations sur les organisations passent par les contrôles de permissions de Better Auth.
+- Les logs sont en JSON et masquent toute clé ressemblant à un secret (jetons, mots de passe, cookies).
