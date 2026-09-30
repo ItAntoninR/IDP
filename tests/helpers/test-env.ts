@@ -19,6 +19,7 @@ export const TEST_ENV: Record<string, string> = {
   SMTP_PORT: "1025",
   MAILPIT_URL: "http://localhost:8025",
   RATE_LIMIT_ENABLED: "false",
+  RETENTION_ENABLED: "false",
   AUTHENTIK_ISSUER: "https://authentik.test/application/o/auth",
   AUTHENTIK_CLIENT_ID: "authentik-client",
   AUTHENTIK_CLIENT_SECRET: "authentik-secret",

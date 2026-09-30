@@ -144,42 +144,70 @@ describe("ownership transfer and leaving", () => {
 describe("account deletion", () => {
   beforeEach(resetDb);
 
-  it("deletes an account only after the emailed confirmation", async () => {
-    const { owner, organizationId } = await setupOrgWithOwner();
-    const member = await addMember(owner, organizationId);
+  it("pseudonymizes an account only after the emailed confirmation, and archives it", async () => {
+    const { owner, organizationId, ownerEmail } = await setupOrgWithOwner();
+    const member = await addMember(owner, organizationId, "owner");
+    const invitee = uniqueEmail("invitee");
+    await member.agent.post("/api/auth/organization/invite-member").send({ email: invitee, role: "member", organizationId }).expect(200);
 
     expect((await member.agent.get("/api/account/deletion").expect(200)).body.blocker).toBeNull();
-    await member.agent.post("/api/auth/delete-user").send({}).expect(200);
+    await member.agent.post("/api/auth/delete-user").send({}).expect(404);
+    await member.agent.post("/api/account/deletion").expect(200);
     expect(await userExists(member.email)).toBe(true);
 
     const mail = await waitForEmail(member.email, { subject: /suppression/ });
+    expect(mail.text).toContain("1 an");
     const link = extractLink(mail.text).url;
     expect(link.pathname).toBe("/account/delete");
+    const token = link.searchParams.get("token")!;
 
-    const wrong = await member.agent.post("/api/auth/delete-user").send({ token: "not-a-token" });
-    expect(wrong.status).toBeGreaterThanOrEqual(400);
+    const wrong = await member.agent.post("/api/account/deletion/confirm").send({ token: "not-a-token" });
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.code).toBe("INVALID_TOKEN");
+    const ownerTry = await owner.post("/api/account/deletion/confirm").send({ token });
+    expect(ownerTry.body.code).toBe("INVALID_TOKEN");
     expect(await userExists(member.email)).toBe(true);
 
-    await member.agent.post("/api/auth/delete-user").send({ token: link.searchParams.get("token") }).expect(200);
+    await member.agent.post("/api/account/deletion/confirm").send({ token }).expect(200);
+    await member.agent.post("/api/account/deletion/confirm").send({ token }).expect(401);
+
+    const [row] = await db.select().from(schema.user).where(eq(schema.user.id, member.userId));
+    expect(row).toMatchObject({ name: "Utilisateur supprimé", email: `deleted-${member.userId}@deleted.invalid`, banned: true });
+    expect(row!.deletedAt).toBeInstanceOf(Date);
     expect(await userExists(member.email)).toBe(false);
     expect(await memberRole(member.memberId)).toBeUndefined();
+    expect(await db.select().from(schema.account).where(eq(schema.account.userId, member.userId))).toHaveLength(0);
+    expect(await db.select().from(schema.session).where(eq(schema.session.userId, member.userId))).toHaveLength(0);
     expect((await member.agent.get("/api/auth/get-session")).body).toBeNull();
+    expect(await db.select().from(schema.invitation).where(eq(schema.invitation.email, invitee))).toHaveLength(1);
+
+    const [archive] = await db.select().from(schema.deletedAccountArchive).where(eq(schema.deletedAccountArchive.userId, member.userId));
+    expect(archive).toMatchObject({ email: member.email, reason: "self" });
+    expect((archive!.connections as { sessions: unknown[] }).sessions.length).toBeGreaterThan(0);
+    const days = (archive!.expiresAt.getTime() - archive!.deletedAt.getTime()) / 86_400_000;
+    expect(Math.round(days)).toBe(365);
+
     await waitForEmail(member.email, { subject: /a été supprimé/ });
     const [entry] = await auditActions("user.delete");
     expect(entry).toMatchObject({ targetId: member.userId, metadata: { by: "self" } });
+    expect(ownerEmail).not.toBe(member.email);
   });
 
-  it("refuses the only owner of an organization and staff accounts", async () => {
-    const { owner, adminAgent } = await setupOrgWithOwner();
+  it("refuses the only owner of an organization, staff accounts and impersonation", async () => {
+    const { owner, adminAgent, ownerEmail } = await setupOrgWithOwner();
     const blocked = await owner.get("/api/account/deletion").expect(200);
     expect(blocked.body.blocker).toMatchObject({ code: "SOLE_OWNER" });
-    const res = await owner.post("/api/auth/delete-user").send({});
+    const res = await owner.post("/api/account/deletion");
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("SOLE_OWNER");
 
-    const staff = await adminAgent.post("/api/auth/delete-user").send({});
+    const staff = await adminAgent.post("/api/account/deletion");
     expect(staff.status).toBe(403);
     expect(staff.body.code).toBe("STAFF_ACCOUNT_MANAGED_IN_AUTHENTIK");
+
+    const [ownerUser] = await db.select().from(schema.user).where(eq(schema.user.email, ownerEmail));
+    await adminAgent.post("/api/auth/admin/impersonate-user").send({ userId: ownerUser!.id }).expect(200);
+    await adminAgent.post("/api/account/deletion").expect(403);
   });
 
   it("lets admins delete accounts through the guarded route only", async () => {
@@ -191,9 +219,22 @@ describe("account deletion", () => {
 
     await adminAgent.delete(`/api/admin/users/${member.userId}`).expect(200);
     expect(await userExists(member.email)).toBe(false);
+    const [row] = await db.select().from(schema.user).where(eq(schema.user.id, member.userId));
+    expect(row?.deletedAt).toBeInstanceOf(Date);
     await waitForEmail(member.email, { subject: /a été supprimé/ });
     const [entry] = await auditActions("user.delete");
     expect(entry).toMatchObject({ actorId: admin.id, targetId: member.userId, metadata: { by: "admin" } });
+    await adminAgent.delete(`/api/admin/users/${member.userId}`).expect(404);
+
+    const archives = await adminAgent.get("/api/admin/archives").query({ email: member.email }).expect(200);
+    expect(archives.body.archives).toEqual([expect.objectContaining({ email: member.email, reason: "admin" })]);
+    await owner.get("/api/admin/archives").query({ email: member.email }).expect(403);
+    await adminAgent.get("/api/admin/archives").query({ email: "ab" }).expect(400);
+    const exported = await adminAgent.get(`/api/admin/archives/${archives.body.archives[0].id}/export`).expect(200);
+    expect(exported.headers["content-disposition"]).toContain("attachment");
+    expect(JSON.parse(exported.text)).toMatchObject({ userId: member.userId, email: member.email });
+    const [consulted] = await auditActions("archive.export");
+    expect(consulted).toMatchObject({ actorId: admin.id, targetId: member.userId });
 
     const [ownerUser] = await db.select().from(schema.user).where(eq(schema.user.email, ownerEmail));
     const sole = await adminAgent.delete(`/api/admin/users/${ownerUser!.id}`);

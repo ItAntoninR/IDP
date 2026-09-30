@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  Archive,
   BookOpen,
   Building2,
   Check,
@@ -112,6 +113,7 @@ const sections = computed<{ label: string; links: NavLink[] }[]>(() => [
             { to: "/admin/orgs", label: "Organisations", icon: Building2 },
             { to: "/admin/users", label: "Utilisateurs", icon: Users },
             { to: "/admin/audit", label: "Journal", icon: ScrollText },
+            { to: "/admin/archives", label: "Archives", icon: Archive },
             { to: "/api/auth/reference", label: "Documentation API", icon: BookOpen, external: true },
           ],
         },

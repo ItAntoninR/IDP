@@ -30,9 +30,10 @@ const initials = computed(() =>
       </div>
     </div>
     <div class="flex flex-wrap gap-1 pt-2">
+      <Badge v-if="user.deletedAt" variant="outline">Supprimé</Badge>
       <Badge v-if="isAdmin" variant="warning">Admin</Badge>
-      <Badge v-if="user.banned" variant="destructive">Suspendu</Badge>
-      <Badge v-if="!user.emailVerified" variant="outline">Email non vérifié</Badge>
+      <Badge v-if="user.banned && !user.deletedAt" variant="destructive">Suspendu</Badge>
+      <Badge v-if="!user.emailVerified && !user.deletedAt" variant="outline">Email non vérifié</Badge>
       <Badge v-if="isSelf" variant="secondary">Vous</Badge>
     </div>
   </SheetHeader>
@@ -65,6 +66,10 @@ const initials = computed(() =>
           <dt class="text-muted-foreground">Inscrit le</dt>
           <dd>{{ formatDate(user.createdAt) }}</dd>
         </div>
+        <div v-if="!user.deletedAt" class="flex justify-between gap-4 px-3 py-2.5">
+          <dt class="text-muted-foreground">Dernière connexion</dt>
+          <dd>{{ formatDate(user.lastActiveAt) }}</dd>
+        </div>
         <div class="flex justify-between gap-4 px-3 py-2.5">
           <dt class="text-muted-foreground">Identifiant</dt>
           <dd class="truncate font-mono text-xs">{{ user.id }}</dd>
@@ -72,7 +77,15 @@ const initials = computed(() =>
       </dl>
     </section>
 
-    <section v-if="user.banned" class="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
+    <section v-if="user.deletedAt" class="space-y-2 rounded-lg border p-3 text-sm">
+      <p class="font-medium">Compte supprimé le {{ formatDate(user.deletedAt) }}</p>
+      <p class="text-muted-foreground">
+        Les données personnelles ont été effacées. L'identifiant est conservé pour les applications. L'archive de réquisition se consulte depuis
+        la page Archives.
+      </p>
+    </section>
+
+    <section v-else-if="user.banned" class="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
       <p class="font-medium text-red-800">Compte suspendu</p>
       <p class="text-red-700">
         {{ user.banReason || "Sans motif" }} ·
@@ -80,7 +93,7 @@ const initials = computed(() =>
       </p>
     </section>
 
-    <section class="space-y-3">
+    <section v-if="!user.deletedAt" class="space-y-3">
       <h3 class="text-sm font-semibold">Données personnelles</h3>
       <div class="flex items-center justify-between gap-4 rounded-lg border p-3">
         <div>
@@ -91,7 +104,7 @@ const initials = computed(() =>
       </div>
     </section>
 
-    <section v-if="!isSelf" class="space-y-3">
+    <section v-if="!isSelf && !user.deletedAt" class="space-y-3">
       <h3 class="text-sm font-semibold">Actions</h3>
       <div class="divide-y rounded-lg border">
         <div v-if="!isAdmin && !user.banned" class="flex items-center justify-between gap-4 p-3">

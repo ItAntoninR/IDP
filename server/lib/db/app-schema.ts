@@ -22,6 +22,22 @@ export const auditLog = pgTable(
   ],
 );
 
+export const deletedAccountArchive = pgTable(
+  "deleted_account_archive",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    reason: text("reason").notNull(),
+    accountCreatedAt: timestamp("account_created_at", { withTimezone: true }).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    connections: jsonb("connections").$type<Record<string, unknown>>().default({}).notNull(),
+  },
+  (t) => [index("deleted_account_archive_email_idx").on(t.email), index("deleted_account_archive_expires_idx").on(t.expiresAt)],
+);
+
 export const knownDevice = pgTable(
   "known_device",
   {

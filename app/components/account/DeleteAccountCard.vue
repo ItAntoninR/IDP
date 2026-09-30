@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { Trash2 } from "lucide-vue-next";
-import { authClient } from "~/lib/auth-client";
 import { errorMessage } from "~/lib/errors";
 
 type Blocker = { code: "STAFF_ACCOUNT_MANAGED_IN_AUTHENTIK" } | { code: "SOLE_OWNER"; organizations: string[] } | null;
@@ -17,11 +16,13 @@ async function load() {
 
 async function requestDeletion() {
   sending.value = true;
-  const res = await authClient.deleteUser({});
-  sending.value = false;
-  if (res.error) {
-    toast.error(errorMessage(res.error));
+  try {
+    await $fetch("/api/account/deletion", { method: "POST" });
+  } catch (e) {
+    toast.error(errorMessage((e as { data?: unknown }).data ?? e));
     return load();
+  } finally {
+    sending.value = false;
   }
   confirmOpen.value = false;
   sent.value = true;
@@ -52,7 +53,7 @@ onMounted(load);
   <ConfirmDialog
     v-model:open="confirmOpen"
     title="Supprimer votre compte ?"
-    description="Nous allons vous envoyer un email pour confirmer. La suppression ne sera faite qu'après avoir cliqué sur le lien, et elle sera définitive."
+    description="Nous allons vous envoyer un email pour confirmer. La suppression ne sera faite qu'après avoir cliqué sur le lien, et elle sera définitive. Votre identité et votre historique de connexion seront conservés 1 an dans une archive, uniquement pour répondre aux autorités."
     confirm-label="Envoyer l'email de confirmation"
     destructive
     :loading="sending"

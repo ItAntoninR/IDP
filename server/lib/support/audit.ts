@@ -24,6 +24,8 @@ export const AUDIT_ACTIONS = [
   "user.two_factor.reset",
   "user.delete",
   "user.export",
+  "user.inactivity.kept",
+  "archive.export",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

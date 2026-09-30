@@ -95,18 +95,22 @@ export function deleteAccountTemplate(url: string): EmailContent {
     subject: "Confirmez la suppression de votre compte",
     html: layout(
       "Confirmez la suppression de votre compte",
-      "Vous avez demandé la suppression de votre compte. Elle est <strong>définitive</strong> : vos accès aux applications et vos informations personnelles seront effacés. Ce lien est valable 1 heure.",
+      "Vous avez demandé la suppression de votre compte. Elle est <strong>définitive</strong> : vos accès aux applications et vos informations personnelles seront effacés. Seules votre identité et votre historique de connexion sont conservés 1 an dans une archive, pour répondre à une éventuelle demande des autorités. Ce lien est valable 1 heure.",
       { label: "Supprimer mon compte", url },
       "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email et changez votre mot de passe.",
     ),
-    text: `Confirmez la suppression définitive de votre compte (lien valable 1 heure) : ${url}`,
+    text: `Confirmez la suppression définitive de votre compte (lien valable 1 heure) : ${url}\n\nVos accès aux applications et vos informations personnelles seront effacés. Seules votre identité et votre historique de connexion sont conservés 1 an dans une archive, pour répondre à une éventuelle demande des autorités.`,
   };
 }
 
-export function accountDeletedTemplate(bySupport: boolean): EmailContent {
-  const intro = bySupport
-    ? "Votre compte a été supprimé par notre équipe, à votre demande. Vos accès aux applications et vos informations personnelles ont été effacés."
-    : "Votre compte a bien été supprimé. Vos accès aux applications et vos informations personnelles ont été effacés.";
+const DELETION_REASONS = {
+  self: "Votre compte a bien été supprimé.",
+  admin: "Votre compte a été supprimé par notre équipe, à votre demande.",
+  inactivity: "Votre compte a été supprimé car il n'avait pas été utilisé depuis 3 ans.",
+} as const;
+
+export function accountDeletedTemplate(reason: keyof typeof DELETION_REASONS): EmailContent {
+  const intro = `${DELETION_REASONS[reason]} Vos accès aux applications et vos informations personnelles ont été effacés. Votre identité et votre historique de connexion sont conservés 1 an dans une archive, uniquement pour répondre à une éventuelle demande des autorités, puis effacés.`;
   return {
     subject: "Votre compte a été supprimé",
     html: layout(
@@ -116,6 +120,21 @@ export function accountDeletedTemplate(bySupport: boolean): EmailContent {
       "Pour utiliser à nouveau nos applications, il vous faudra une nouvelle invitation.",
     ),
     text: intro,
+  };
+}
+
+export function inactivityWarningTemplate(url: string, deletionDate: Date): EmailContent {
+  const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "Europe/Paris" }).format(deletionDate);
+  const intro = `Vous ne vous êtes pas connecté à votre compte depuis bientôt 3 ans. Sans connexion de votre part, il sera supprimé le ${date}.`;
+  return {
+    subject: "Votre compte sera bientôt supprimé",
+    html: layout(
+      "Votre compte sera bientôt supprimé",
+      `${escape(intro)} Pour le conserver, il suffit de vous connecter une fois avant cette date.`,
+      { label: "Me connecter", url },
+      "Si vous n'utilisez plus nos applications, vous n'avez rien à faire.",
+    ),
+    text: `${intro} Pour le conserver, connectez-vous avant cette date : ${url}`,
   };
 }
 

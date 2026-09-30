@@ -18,6 +18,8 @@ export interface AdminUser {
   banExpires?: string | Date | null;
   twoFactorEnabled?: boolean | null;
   hasPasskey?: boolean | null;
+  deletedAt?: string | Date | null;
+  lastActiveAt?: string | Date | null;
   createdAt: string | Date;
 }
 

@@ -6,12 +6,10 @@ import { auditAfterHook } from "./audit-hooks";
 import { refuseMagicLinkWithTwoFactor, requirePasskeyUserVerification, syncHasPasskey } from "./two-factor-policy";
 import { alertOnNewDevice, alertOnPasswordChange } from "./security-alerts";
 import { restrictApiDocsToAdmins } from "./api-docs";
-import { refuseUndeletableAccounts } from "../account-deletion";
 import { validateOrganizationProfile } from "../org-profile";
 
 export const beforeHook = createAuthMiddleware(async (ctx) => {
   await restrictApiDocsToAdmins(ctx);
-  await refuseUndeletableAccounts(ctx);
   forbidCeilingEdits(ctx);
   validateOrganizationProfile(ctx);
   await enforceRoleCeiling(ctx);

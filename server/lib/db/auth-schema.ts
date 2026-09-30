@@ -28,6 +28,9 @@ export const user = pgTable("user", {
   banExpires: timestamp("ban_expires"),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
   hasPasskey: boolean("has_passkey").default(false),
+  lastActiveAt: timestamp("last_active_at"),
+  inactivityWarnedAt: timestamp("inactivity_warned_at"),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const session = pgTable(

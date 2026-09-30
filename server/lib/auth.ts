@@ -16,8 +16,8 @@ import { passkey } from "@better-auth/passkey";
 import { db, schema } from "./db/index";
 import { env } from "./env";
 import { sendEmailInBackground } from "./email/mailer";
-import { deleteAccountTemplate, magicLinkTemplate, resetPasswordTemplate, verifyEmailTemplate } from "./email/templates";
-import { accountDeletionUrl, assertAccountDeletable, onAccountDeleted } from "./account-deletion";
+import { magicLinkTemplate, resetPasswordTemplate, verifyEmailTemplate } from "./email/templates";
+import { recordActivity } from "./account-lifecycle";
 import { logger } from "./support/logger";
 import { ac, roles } from "../../shared/permissions";
 import { AUTHENTIK_PROVIDER_ID, assertSignupAllowed, isAuthentikCallback } from "./auth/signup-guard";
@@ -46,7 +46,7 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: "pg", schema }),
   trustedOrigins: [env.AUTH_BASE_URL, env.DATAHUB_URL, env.APP_URL],
-  disabledPaths: ["/token", "/admin/remove-user"],
+  disabledPaths: ["/token", "/admin/remove-user", "/delete-user", "/delete-user/callback"],
 
   emailAndPassword: {
     enabled: true,
@@ -104,15 +104,9 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       hasPasskey: { type: "boolean", input: false, required: false, defaultValue: false },
-    },
-    deleteUser: {
-      enabled: true,
-      deleteTokenExpiresIn: 60 * 60,
-      sendDeleteAccountVerification: async ({ user, token }) => {
-        sendEmailInBackground(user.email, deleteAccountTemplate(accountDeletionUrl(token)));
-      },
-      beforeDelete: async (user) => assertAccountDeletable(user as { id: string; role?: string | null }),
-      afterDelete: async (user) => onAccountDeleted(user),
+      lastActiveAt: { type: "date", input: false, required: false },
+      inactivityWarnedAt: { type: "date", input: false, required: false },
+      deletedAt: { type: "date", input: false, required: false },
     },
   },
 
@@ -123,6 +117,11 @@ export const auth = betterAuth({
   },
 
   databaseHooks: {
+    session: {
+      create: {
+        after: async (session) => recordActivity(session as { userId: string; impersonatedBy?: string | null }),
+      },
+    },
     user: {
       update: {
         after: async (user, ctx) => alertOnTwoFactorChange(user as { email: string; twoFactorEnabled?: boolean | null }, ctx?.path),

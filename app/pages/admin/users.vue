@@ -250,10 +250,13 @@ onMounted(load);
             </TableCell>
             <TableCell>
               <div class="flex flex-wrap gap-1">
-                <Badge v-if="isGlobalAdmin(u)" variant="warning">Admin</Badge>
-                <Badge v-if="u.banned" variant="destructive">Suspendu</Badge>
-                <Badge v-if="!u.emailVerified" variant="outline">Non vérifié</Badge>
-                <span v-if="!isGlobalAdmin(u) && !u.banned && u.emailVerified" class="flex items-center gap-1.5 text-xs text-emerald-700">
+                <Badge v-if="u.deletedAt" variant="outline">Supprimé</Badge>
+                <template v-else>
+                  <Badge v-if="isGlobalAdmin(u)" variant="warning">Admin</Badge>
+                  <Badge v-if="u.banned" variant="destructive">Suspendu</Badge>
+                  <Badge v-if="!u.emailVerified" variant="outline">Non vérifié</Badge>
+                </template>
+                <span v-if="!u.deletedAt && !isGlobalAdmin(u) && !u.banned && u.emailVerified" class="flex items-center gap-1.5 text-xs text-emerald-700">
                   <span class="size-1.5 rounded-full bg-emerald-500" /> Actif
                 </span>
               </div>
@@ -271,11 +274,11 @@ onMounted(load);
                 <DropdownMenuContent>
                   <DropdownMenuLabel class="max-w-56 truncate">{{ u.email }}</DropdownMenuLabel>
                   <DropdownMenuItem @select="openDetail(u)"><PanelRightOpen /> Ouvrir le détail</DropdownMenuItem>
-                  <DropdownMenuItem v-if="!isSelf(u) && !isGlobalAdmin(u) && !u.banned" @select="impersonate(u)">
+                  <DropdownMenuItem v-if="!isSelf(u) && !isGlobalAdmin(u) && !u.banned && !u.deletedAt" @select="impersonate(u)">
                     <LogIn /> Se connecter en tant que
                   </DropdownMenuItem>
                   <DropdownMenuItem @select="copyId(u)"><Copy /> Copier l'identifiant</DropdownMenuItem>
-                  <template v-if="!isSelf(u)">
+                  <template v-if="!isSelf(u) && !u.deletedAt">
                     <DropdownMenuSeparator />
                     <DropdownMenuItem v-if="u.banned" @select="unban(u)"><ShieldCheck /> Lever la suspension</DropdownMenuItem>
                     <DropdownMenuItem v-else variant="destructive" @select="askBan(u)"><ShieldOff /> Suspendre</DropdownMenuItem>

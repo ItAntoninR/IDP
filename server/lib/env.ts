@@ -47,6 +47,7 @@ const EnvSchema = z.object({
   TRUSTED_IP_HEADER: z.string().default("x-forwarded-for"),
 
   MIGRATE_ON_START: bool.default(false),
+  RETENTION_ENABLED: bool.default(true),
   MIGRATIONS_DIR: z.string().default("server/lib/db/migrations"),
 
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
