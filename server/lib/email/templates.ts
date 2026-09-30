@@ -9,7 +9,13 @@ const escape = (s: string) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
 
-function layout(title: string, body: string, cta: { label: string; url: string }, footer: string) {
+function layout(title: string, body: string, cta: { label: string; url: string } | null, footer: string) {
+  const button = cta
+    ? `<p style="margin:0 0 24px"><a href="${escape(cta.url)}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">${escape(cta.label)}</a></p>`
+    : "";
+  const fallback = cta
+    ? `<br>Si le bouton ne fonctionne pas, copiez ce lien :<br><span style="word-break:break-all">${escape(cta.url)}</span>`
+    : "";
   return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>${escape(title)}</title></head>
 <body style="margin:0;background:#f4f4f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18181b">
@@ -18,8 +24,8 @@ function layout(title: string, body: string, cta: { label: string; url: string }
       <tr><td>
         <h1 style="font-size:20px;margin:0 0 16px">${escape(title)}</h1>
         <p style="font-size:15px;line-height:1.6;margin:0 0 24px">${body}</p>
-        <p style="margin:0 0 24px"><a href="${escape(cta.url)}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">${escape(cta.label)}</a></p>
-        <p style="font-size:13px;color:#71717a;line-height:1.5;margin:0">${escape(footer)}<br>Si le bouton ne fonctionne pas, copiez ce lien :<br><span style="word-break:break-all">${escape(cta.url)}</span></p>
+        ${button}
+        <p style="font-size:13px;color:#71717a;line-height:1.5;margin:0">${escape(footer)}${fallback}</p>
       </td></tr>
     </table>
   </td></tr></table>
@@ -81,6 +87,35 @@ export function invitationTemplate(params: {
       "Si vous ne vous attendiez pas à cette invitation, ignorez cet email.",
     ),
     text: `${params.inviterName} vous invite à rejoindre ${params.organizationName} : ${params.url}`,
+  };
+}
+
+export function deleteAccountTemplate(url: string): EmailContent {
+  return {
+    subject: "Confirmez la suppression de votre compte",
+    html: layout(
+      "Confirmez la suppression de votre compte",
+      "Vous avez demandé la suppression de votre compte. Elle est <strong>définitive</strong> : vos accès aux applications et vos informations personnelles seront effacés. Ce lien est valable 1 heure.",
+      { label: "Supprimer mon compte", url },
+      "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email et changez votre mot de passe.",
+    ),
+    text: `Confirmez la suppression définitive de votre compte (lien valable 1 heure) : ${url}`,
+  };
+}
+
+export function accountDeletedTemplate(bySupport: boolean): EmailContent {
+  const intro = bySupport
+    ? "Votre compte a été supprimé par notre équipe, à votre demande. Vos accès aux applications et vos informations personnelles ont été effacés."
+    : "Votre compte a bien été supprimé. Vos accès aux applications et vos informations personnelles ont été effacés.";
+  return {
+    subject: "Votre compte a été supprimé",
+    html: layout(
+      "Votre compte a été supprimé",
+      escape(intro),
+      null,
+      "Pour utiliser à nouveau nos applications, il vous faudra une nouvelle invitation.",
+    ),
+    text: intro,
   };
 }
 

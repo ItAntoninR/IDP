@@ -227,6 +227,39 @@ export async function updateOrganization(id: string, input: z.infer<typeof updat
   return organization!;
 }
 
+export const deleteOrganizationSchema = z.object({ confirm: z.string() });
+
+type DeletionResult = { ok: true } | { ok: false; code: "ORGANIZATION_NOT_FOUND" | "CONFIRMATION_MISMATCH" };
+
+export async function deleteOrganization(id: string, confirm: string, actor: Omit<Actor, "name">): Promise<DeletionResult> {
+  const [org] = await db
+    .select({ name: schema.organization.name, slug: schema.organization.slug })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, id))
+    .limit(1);
+  if (!org) return { ok: false, code: "ORGANIZATION_NOT_FOUND" };
+  if (confirm !== org.slug) return { ok: false, code: "CONFIRMATION_MISMATCH" };
+
+  const members = await db.transaction(async (tx) => {
+    const [row] = await tx.select({ n: count() }).from(schema.member).where(eq(schema.member.organizationId, id));
+    await tx.update(schema.session).set({ activeOrganizationId: null }).where(eq(schema.session.activeOrganizationId, id));
+    await tx.delete(schema.oauthRefreshToken).where(eq(schema.oauthRefreshToken.referenceId, id));
+    await tx.delete(schema.oauthConsent).where(eq(schema.oauthConsent.referenceId, id));
+    await tx.delete(schema.organization).where(eq(schema.organization.id, id));
+    return row?.n ?? 0;
+  });
+
+  await audit({
+    ...actor,
+    action: "organization.delete",
+    targetType: "organization",
+    targetId: id,
+    organizationId: id,
+    metadata: { name: org.name, slug: org.slug, members },
+  });
+  return { ok: true };
+}
+
 export async function organizationRoleNames(organizationId: string) {
   const rows = await db
     .select({ role: schema.organizationRole.role })

@@ -9,6 +9,7 @@ export const AUDIT_ACTIONS = [
   "organization.update",
   "organization.ceiling.update",
   "organization.security.update",
+  "organization.delete",
   "organization.owner.transfer",
   "role.create",
   "role.update",
@@ -21,6 +22,7 @@ export const AUDIT_ACTIONS = [
   "user.unban",
   "user.role.update",
   "user.two_factor.reset",
+  "user.delete",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

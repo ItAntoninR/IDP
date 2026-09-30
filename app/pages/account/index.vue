@@ -15,5 +15,6 @@ const { accounts, load } = useLinkedAccounts();
     <AccountProfileCard />
     <AccountLinkedAccountsCard :accounts="accounts" @changed="load" />
     <AccountOrganizationsCard />
+    <AccountDeleteAccountCard />
   </template>
 </template>

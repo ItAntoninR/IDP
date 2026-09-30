@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
 import { errorMessage } from "~/lib/errors";
+import { Trash2 } from "lucide-vue-next";
 import { formatDate, roleLabel, roleOptions } from "~/lib/labels";
 import type { OrgInvitation, OrgMember } from "~/lib/org";
 
@@ -19,13 +20,16 @@ interface OrgDetailResponse {
 }
 
 const props = defineProps<{ id: string }>();
-const emit = defineEmits<{ changed: [] }>();
+const emit = defineEmits<{ changed: []; deleted: [] }>();
 
 const detail = ref<OrgDetailResponse | null>(null);
 const apps = ref<string[]>([]);
 const inviteEmail = ref("");
 const inviteRole = ref("owner");
 const saving = ref(false);
+const deleteOpen = ref(false);
+const deleteConfirm = ref("");
+const deleting = ref(false);
 const tab = ref("members");
 
 const peopleEndpoint = () => `/api/admin/organizations/${props.id}/people`;
@@ -95,6 +99,20 @@ async function invite() {
     await Promise.all([load(), invitations.load()]);
   } catch (e) {
     fail(e);
+  }
+}
+
+async function deleteOrganization() {
+  deleting.value = true;
+  try {
+    await $fetch(`/api/admin/organizations/${props.id}`, { method: "DELETE", body: { confirm: deleteConfirm.value } });
+    toast.success(`${detail.value?.organization.name ?? "L'organisation"} a été supprimée.`);
+    deleteOpen.value = false;
+    emit("deleted");
+  } catch (e) {
+    fail(e);
+  } finally {
+    deleting.value = false;
   }
 }
 
@@ -196,6 +214,42 @@ watch(() => props.id, load, { immediate: true });
           </div>
         </TabsContent>
       </Tabs>
+
+      <section class="space-y-3">
+        <h3 class="text-sm font-semibold">Zone sensible</h3>
+        <div class="flex items-center justify-between gap-4 rounded-lg border p-3">
+          <div>
+            <p class="text-sm font-medium text-red-700">Supprimer l'organisation</p>
+            <p class="text-muted-foreground text-xs">Membres, invitations et rôles sont supprimés. Les applications perdent l'accès.</p>
+          </div>
+          <Button variant="destructive" size="sm" @click="(deleteConfirm = ''), (deleteOpen = true)"><Trash2 /> Supprimer</Button>
+        </div>
+      </section>
     </SheetBody>
+
+    <Dialog v-model:open="deleteOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Supprimer {{ detail.organization.name }} ?</DialogTitle>
+          <DialogDescription>
+            Cette action est définitive : {{ detail.counts.members }} membre(s) perdront immédiatement l'accès aux applications de l'organisation.
+          </DialogDescription>
+        </DialogHeader>
+        <form class="space-y-5" @submit.prevent="deleteOrganization">
+          <FormField
+            v-model="deleteConfirm"
+            :label="`Tapez « ${detail.organization.slug} » pour confirmer`"
+            autocomplete="off"
+            required
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" @click="deleteOpen = false">Annuler</Button>
+            <Button type="submit" variant="destructive" :disabled="deleting || deleteConfirm !== detail.organization.slug">
+              Supprimer définitivement
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   </template>
 </template>

@@ -141,6 +141,100 @@ describe("ownership transfer and leaving", () => {
   });
 });
 
+describe("account deletion", () => {
+  beforeEach(resetDb);
+
+  it("deletes an account only after the emailed confirmation", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner();
+    const member = await addMember(owner, organizationId);
+
+    expect((await member.agent.get("/api/account/deletion").expect(200)).body.blocker).toBeNull();
+    await member.agent.post("/api/auth/delete-user").send({}).expect(200);
+    expect(await userExists(member.email)).toBe(true);
+
+    const mail = await waitForEmail(member.email, { subject: /suppression/ });
+    const link = extractLink(mail.text).url;
+    expect(link.pathname).toBe("/account/delete");
+
+    const wrong = await member.agent.post("/api/auth/delete-user").send({ token: "not-a-token" });
+    expect(wrong.status).toBeGreaterThanOrEqual(400);
+    expect(await userExists(member.email)).toBe(true);
+
+    await member.agent.post("/api/auth/delete-user").send({ token: link.searchParams.get("token") }).expect(200);
+    expect(await userExists(member.email)).toBe(false);
+    expect(await memberRole(member.memberId)).toBeUndefined();
+    expect((await member.agent.get("/api/auth/get-session")).body).toBeNull();
+    await waitForEmail(member.email, { subject: /a été supprimé/ });
+    const [entry] = await auditActions("user.delete");
+    expect(entry).toMatchObject({ targetId: member.userId, metadata: { by: "self" } });
+  });
+
+  it("refuses the only owner of an organization and staff accounts", async () => {
+    const { owner, adminAgent } = await setupOrgWithOwner();
+    const blocked = await owner.get("/api/account/deletion").expect(200);
+    expect(blocked.body.blocker).toMatchObject({ code: "SOLE_OWNER" });
+    const res = await owner.post("/api/auth/delete-user").send({});
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("SOLE_OWNER");
+
+    const staff = await adminAgent.post("/api/auth/delete-user").send({});
+    expect(staff.status).toBe(403);
+    expect(staff.body.code).toBe("STAFF_ACCOUNT_MANAGED_IN_AUTHENTIK");
+  });
+
+  it("lets admins delete accounts through the guarded route only", async () => {
+    const { owner, adminAgent, admin, organizationId, ownerEmail } = await setupOrgWithOwner();
+    const member = await addMember(owner, organizationId);
+
+    await adminAgent.post("/api/auth/admin/remove-user").send({ userId: member.userId }).expect(404);
+    await owner.delete(`/api/admin/users/${member.userId}`).expect(403);
+
+    await adminAgent.delete(`/api/admin/users/${member.userId}`).expect(200);
+    expect(await userExists(member.email)).toBe(false);
+    await waitForEmail(member.email, { subject: /a été supprimé/ });
+    const [entry] = await auditActions("user.delete");
+    expect(entry).toMatchObject({ actorId: admin.id, targetId: member.userId, metadata: { by: "admin" } });
+
+    const [ownerUser] = await db.select().from(schema.user).where(eq(schema.user.email, ownerEmail));
+    const sole = await adminAgent.delete(`/api/admin/users/${ownerUser!.id}`);
+    expect(sole.status).toBe(409);
+    expect(sole.body.code).toBe("SOLE_OWNER");
+
+    const otherAdmin = await createUser({ role: "admin" });
+    const staff = await adminAgent.delete(`/api/admin/users/${otherAdmin.id}`);
+    expect(staff.status).toBe(403);
+    await adminAgent.delete(`/api/admin/users/${admin.id}`).expect(400);
+    await adminAgent.delete("/api/admin/users/unknown").expect(404);
+  });
+});
+
+describe("organization deletion", () => {
+  beforeEach(resetDb);
+
+  it("requires the slug and removes members, invitations and active selections", async () => {
+    const { owner, adminAgent, organizationId } = await setupOrgWithOwner();
+    await owner.post("/api/auth/organization/set-active").send({ organizationId }).expect(200);
+    await owner.post("/api/auth/organization/invite-member").send({ email: uniqueEmail(), role: "member", organizationId }).expect(200);
+    const [org] = await db.select().from(schema.organization).where(eq(schema.organization.id, organizationId));
+
+    await owner.delete(`/api/admin/organizations/${organizationId}`).send({ confirm: org!.slug }).expect(403);
+    const mismatch = await adminAgent.delete(`/api/admin/organizations/${organizationId}`).send({ confirm: "nope" });
+    expect(mismatch.status).toBe(400);
+    expect(mismatch.body.code).toBe("CONFIRMATION_MISMATCH");
+
+    await adminAgent.delete(`/api/admin/organizations/${organizationId}`).send({ confirm: org!.slug }).expect(200);
+    expect(await db.select().from(schema.organization).where(eq(schema.organization.id, organizationId))).toHaveLength(0);
+    expect(await db.select().from(schema.member).where(eq(schema.member.organizationId, organizationId))).toHaveLength(0);
+    expect(await db.select().from(schema.invitation).where(eq(schema.invitation.organizationId, organizationId))).toHaveLength(0);
+    expect(await db.select().from(schema.session).where(eq(schema.session.activeOrganizationId, organizationId))).toHaveLength(0);
+
+    const [entry] = await auditActions("organization.delete");
+    expect(entry).toMatchObject({ organizationId, metadata: { slug: org!.slug, members: 1 } });
+    expect((await owner.get("/api/account/organization")).body.code).toBe("NO_ACTIVE_ORGANIZATION");
+    await adminAgent.delete(`/api/admin/organizations/${organizationId}`).send({ confirm: org!.slug }).expect(404);
+  });
+});
+
 describe("organization name and logo", () => {
   beforeEach(resetDb);
 
@@ -202,5 +296,18 @@ describe("organization name and logo", () => {
     expect(JSON.stringify(list.body)).not.toContain(PIXEL);
     const detail = await adminAgent.get(`/api/admin/organizations/${organizationId}`).expect(200);
     expect(detail.body.organization).not.toHaveProperty("logo");
+  });
+});
+
+describe("guards", () => {
+  beforeEach(resetDb);
+
+  it("keeps deletion endpoints private", async () => {
+    await agent().get("/api/account/deletion").expect(401);
+    const user = await createUser();
+    const a = await signIn(user.email);
+    await a.post("/api/account/organization/transfer-ownership").send({ memberId: "x" }).expect(400);
+    const { agent: adminAgent } = await signedInAdmin();
+    await adminAgent.get("/api/admin/organizations/unknown").expect(404);
   });
 });

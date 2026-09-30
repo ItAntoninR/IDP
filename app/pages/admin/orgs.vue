@@ -258,7 +258,7 @@ onMounted(load);
 
   <Sheet v-model:open="detailOpen">
     <SheetContent>
-      <AdminOrgDetail v-if="selected" :id="selected" @changed="load" />
+      <AdminOrgDetail v-if="selected" :id="selected" @changed="load" @deleted="(detailOpen = false), load()" />
     </SheetContent>
   </Sheet>
 </template>

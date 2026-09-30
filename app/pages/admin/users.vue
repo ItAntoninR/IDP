@@ -29,6 +29,9 @@ const selectedId = ref<string | null>(null);
 const detailOpen = ref(false);
 const selected = computed(() => users.value?.find((u) => u.id === selectedId.value) ?? null);
 
+const deleteTarget = ref<AdminUser | null>(null);
+const deleteOpen = ref(false);
+const deleteConfirm = ref("");
 const resetTarget = ref<AdminUser | null>(null);
 const resetOpen = ref(false);
 const banTarget = ref<AdminUser | null>(null);
@@ -116,6 +119,29 @@ async function confirmReset() {
     await $fetch(`/api/admin/users/${u.id}/two-factor/reset`, { method: "POST" });
     toast.success(`Double authentification de ${u.email} réinitialisée.`);
     resetOpen.value = false;
+    await load();
+  } catch (e) {
+    toast.error(errorMessage((e as { data?: unknown }).data ?? e));
+  } finally {
+    busy.value = false;
+  }
+}
+
+function askDelete(u: AdminUser) {
+  deleteTarget.value = u;
+  deleteConfirm.value = "";
+  deleteOpen.value = true;
+}
+
+async function confirmDelete() {
+  const u = deleteTarget.value;
+  if (!u || deleteConfirm.value.trim().toLowerCase() !== u.email.toLowerCase()) return;
+  busy.value = true;
+  try {
+    await $fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+    toast.success(`Le compte ${u.email} a été supprimé.`);
+    deleteOpen.value = false;
+    detailOpen.value = false;
     await load();
   } catch (e) {
     toast.error(errorMessage((e as { data?: unknown }).data ?? e));
@@ -256,6 +282,7 @@ onMounted(load);
         @ban="askBan(selected)"
         @unban="unban(selected)"
         @reset-two-factor="askReset(selected)"
+        @delete="askDelete(selected)"
       />
     </SheetContent>
   </Sheet>
@@ -280,5 +307,17 @@ onMounted(load);
     @confirm="confirmBan"
   >
     <FormField v-model="banReason" label="Motif (facultatif)" placeholder="Visible dans le détail de l'utilisateur" />
+  </ConfirmDialog>
+
+  <ConfirmDialog
+    v-model:open="deleteOpen"
+    :title="`Supprimer le compte ${deleteTarget?.email ?? ''} ?`"
+    description="Le compte, ses sessions, ses moyens de connexion et ses adhésions aux organisations seront définitivement supprimés. L'utilisateur sera prévenu par email. Impossible s'il est le seul gérant d'une organisation."
+    confirm-label="Supprimer définitivement"
+    destructive
+    :loading="busy || deleteConfirm.trim().toLowerCase() !== deleteTarget?.email.toLowerCase()"
+    @confirm="confirmDelete"
+  >
+    <FormField v-model="deleteConfirm" label="Tapez l'email du compte pour confirmer" autocomplete="off" />
   </ConfirmDialog>
 </template>

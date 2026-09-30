@@ -31,6 +31,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "organization.update": "Modification d'organisation",
   "organization.ceiling.update": "Modification du plafond",
   "organization.security.update": "Règle de double authentification",
+  "organization.delete": "Suppression d'organisation",
   "organization.owner.transfer": "Transfert du rôle de gérant",
   "role.create": "Création de rôle",
   "role.update": "Modification de rôle",
@@ -43,6 +44,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "user.unban": "Levée de suspension",
   "user.role.update": "Changement de rôle global",
   "user.two_factor.reset": "Réinitialisation de la 2FA",
+  "user.delete": "Suppression de compte",
 };
 
 export const formatDate = (value: string | Date | null | undefined) =>

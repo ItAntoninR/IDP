@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { KeyRound, LogIn, ShieldCheck, ShieldOff } from "lucide-vue-next";
+import { KeyRound, LogIn, ShieldCheck, ShieldOff, Trash2 } from "lucide-vue-next";
 import { authClient, isGlobalAdmin } from "~/lib/auth-client";
 import { formatDate } from "~/lib/labels";
 import type { AdminUser } from "~/lib/types";
 
 const props = defineProps<{ user: AdminUser; busy?: boolean }>();
-const emit = defineEmits<{ impersonate: []; ban: []; unban: []; resetTwoFactor: [] }>();
+const emit = defineEmits<{ impersonate: []; ban: []; unban: []; resetTwoFactor: []; delete: [] }>();
 
 const session = authClient.useSession();
 const isSelf = computed(() => session.value.data?.user.id === props.user.id);
@@ -110,6 +110,13 @@ const initials = computed(() =>
             <p class="text-muted-foreground text-xs">Ferme toutes ses sessions et bloque la connexion.</p>
           </div>
           <Button variant="destructive" size="sm" :disabled="busy" @click="emit('ban')"><ShieldOff /> Suspendre</Button>
+        </div>
+        <div v-if="!isAdmin" class="flex items-center justify-between gap-4 p-3">
+          <div>
+            <p class="text-sm font-medium text-red-700">Supprimer le compte</p>
+            <p class="text-muted-foreground text-xs">À la demande de l'utilisateur (RGPD). Définitif, l'utilisateur est prévenu par email.</p>
+          </div>
+          <Button variant="destructive" size="sm" :disabled="busy" @click="emit('delete')"><Trash2 /> Supprimer</Button>
         </div>
       </div>
     </section>
