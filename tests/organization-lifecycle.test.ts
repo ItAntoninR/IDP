@@ -87,6 +87,60 @@ describe("admin invitations with any role", () => {
   });
 });
 
+describe("ownership transfer and leaving", () => {
+  beforeEach(resetDb);
+
+  it("lets an owner hand over the owner role and become a member", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner(["datahub"]);
+    await owner.post("/api/auth/organization/set-active").send({ organizationId }).expect(200);
+    const member = await addMember(owner, organizationId);
+    const [ownerRow] = await db.select().from(schema.member).where(and(eq(schema.member.organizationId, organizationId), eq(schema.member.role, "owner")));
+
+    await owner.post("/api/account/organization/transfer-ownership").send({ memberId: member.memberId }).expect(200);
+    expect(await memberRole(member.memberId)).toBe("owner");
+    expect(await memberRole(ownerRow!.id)).toBe("member");
+
+    const [entry] = await auditActions("organization.owner.transfer");
+    expect(entry).toMatchObject({ organizationId, targetId: member.memberId });
+
+    const again = await owner.post("/api/account/organization/transfer-ownership").send({ memberId: member.memberId });
+    expect(again.status).toBe(403);
+    expect(again.body.code).toBe("NOT_AN_OWNER");
+    await owner.get("/api/account/organization/people").expect(403);
+  });
+
+  it("refuses transfers to oneself, to an owner or outside the organization", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner();
+    await owner.post("/api/auth/organization/set-active").send({ organizationId }).expect(200);
+    const [ownerRow] = await db.select().from(schema.member).where(eq(schema.member.organizationId, organizationId));
+    const self = await owner.post("/api/account/organization/transfer-ownership").send({ memberId: ownerRow!.id });
+    expect(self.body.code).toBe("MEMBER_NOT_FOUND");
+
+    const coOwner = await addMember(owner, organizationId, "owner");
+    const already = await owner.post("/api/account/organization/transfer-ownership").send({ memberId: coOwner.memberId });
+    expect(already.status).toBe(409);
+    expect(already.body.code).toBe("ALREADY_OWNER");
+
+    const other = await setupOrgWithOwner();
+    const [otherOwner] = await db.select().from(schema.member).where(eq(schema.member.organizationId, other.organizationId));
+    const outside = await owner.post("/api/account/organization/transfer-ownership").send({ memberId: otherOwner!.id });
+    expect(outside.status).toBe(404);
+  });
+
+  it("lets members leave but keeps the last owner", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner();
+    const member = await addMember(owner, organizationId);
+    await member.agent.post("/api/auth/organization/leave").send({ organizationId }).expect(200);
+    expect(await memberRole(member.memberId)).toBeUndefined();
+    const [entry] = await auditActions("member.leave");
+    expect(entry).toMatchObject({ organizationId, targetId: member.memberId, actorId: member.userId });
+
+    const last = await owner.post("/api/auth/organization/leave").send({ organizationId });
+    expect(last.status).toBe(400);
+    expect(last.body.code).toBe("YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER");
+  });
+});
+
 describe("organization name and logo", () => {
   beforeEach(resetDb);
 

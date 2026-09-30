@@ -39,6 +39,7 @@ export async function auditAfterHook(ctx: HookContext) {
     "/organization/invite-member",
     "/organization/update-member-role",
     "/organization/remove-member",
+    "/organization/leave",
     "/organization/create-role",
     "/organization/update-role",
     "/organization/delete-role",
@@ -105,6 +106,15 @@ export async function auditAfterHook(ctx: HookContext) {
         targetId: member?.id ?? str(body.memberIdOrEmail),
         organizationId,
         metadata: { userId: member?.userId ?? null },
+      });
+    }
+    case "/organization/leave": {
+      const member = returned as { id?: string; organizationId?: string } | undefined;
+      return log("member.leave", {
+        targetType: "member",
+        targetId: member?.id,
+        organizationId: member?.organizationId ?? str(body.organizationId),
+        metadata: { userId: actorId },
       });
     }
     case "/organization/create-role":

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import { Copy, Ellipsis, Mail, MailX, PanelRightOpen, Send, UserMinus, Users } from "lucide-vue-next";
+import { Copy, Crown, Ellipsis, Mail, MailX, PanelRightOpen, Send, UserMinus, Users } from "lucide-vue-next";
 import { authClient } from "~/lib/auth-client";
 import { errorMessage } from "~/lib/errors";
 import { formatDate, roleLabel, roleOptions } from "~/lib/labels";
@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{ changed: []; invite: [] }>();
 
 const session = authClient.useSession();
+const { context: accountContext, refresh: refreshContext } = useAccountContext();
 const route = useRoute();
 const filter = ref<PeopleFilter>(
   ["members", "pending", "no2fa"].includes(route.query.filter as string) ? (route.query.filter as PeopleFilter) : "all",
@@ -29,6 +30,7 @@ const invitation = ref<OrgInvitation | null>(null);
 const detailOpen = ref(false);
 const removeOpen = ref(false);
 const cancelOpen = ref(false);
+const transferOpen = ref(false);
 const newRole = ref("");
 
 const required = computed(() => props.org.requireTwoFactor);
@@ -60,6 +62,31 @@ function changed() {
 
 const isSelf = (m: OrgMember) => m.userId === session.value.data?.user.id;
 const canAct = (m: OrgMember) => props.rights.members && !isSelf(m);
+const isOwner = (role: string | undefined) => !!role?.split(",").includes("owner");
+const canTransferTo = (m: OrgMember) => isOwner(accountContext.value?.active?.role) && !isSelf(m) && !isOwner(m.role);
+
+async function transferOwnership() {
+  const m = member.value;
+  if (!m) return;
+  busy.value = true;
+  try {
+    await $fetch("/api/account/organization/transfer-ownership", { method: "POST", body: { memberId: m.id } });
+  } catch (e) {
+    toast.error(errorMessage((e as { data?: unknown }).data ?? e));
+    return;
+  } finally {
+    busy.value = false;
+  }
+  transferOpen.value = false;
+  detailOpen.value = false;
+  toast.success(`${m.user.name || m.user.email} est maintenant gérant.`);
+  const context = await refreshContext();
+  if (!context.active?.canManage) {
+    clearNuxtState((key) => key.startsWith("managed-org"));
+    return navigateTo("/", { replace: true });
+  }
+  changed();
+}
 const initials = (m: OrgMember) =>
   (m.user.name || m.user.email)
     .split(/[\s@.]+/)
@@ -302,9 +329,16 @@ async function cancelInvitation() {
             </form>
           </section>
 
-          <section v-if="canAct(member)" class="space-y-3">
+          <section v-if="canAct(member) || canTransferTo(member)" class="space-y-3">
             <h3 class="text-sm font-semibold">Zone sensible</h3>
-            <div class="flex items-center justify-between gap-4 rounded-lg border p-3">
+            <div v-if="canTransferTo(member)" class="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div>
+                <p class="text-sm font-medium">Transférer le rôle de gérant</p>
+                <p class="text-muted-foreground text-xs">{{ member.user.name || member.user.email }} devient gérant, vous devenez membre.</p>
+              </div>
+              <Button variant="outline" size="sm" @click="transferOpen = true"><Crown /> Transférer</Button>
+            </div>
+            <div v-if="canAct(member)" class="flex items-center justify-between gap-4 rounded-lg border p-3">
               <div>
                 <p class="text-sm font-medium text-red-700">Retirer de l'organisation</p>
                 <p class="text-muted-foreground text-xs">L'accès aux applications est coupé immédiatement.</p>
@@ -325,6 +359,14 @@ async function cancelInvitation() {
     destructive
     :loading="busy"
     @confirm="removeMember"
+  />
+  <ConfirmDialog
+    v-model:open="transferOpen"
+    :title="`Transférer le rôle de gérant à ${member?.user.name || member?.user.email || ''} ?`"
+    description="Cette personne pourra gérer l'organisation et ses membres. Vous deviendrez simple membre et perdrez ces droits."
+    confirm-label="Transférer"
+    :loading="busy"
+    @confirm="transferOwnership"
   />
   <ConfirmDialog
     v-model:open="cancelOpen"

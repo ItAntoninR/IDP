@@ -14,5 +14,6 @@ const { accounts, load } = useLinkedAccounts();
     <PageHeader title="Profil" description="Vos informations personnelles et les comptes que vous utilisez pour vous connecter." />
     <AccountProfileCard />
     <AccountLinkedAccountsCard :accounts="accounts" @changed="load" />
+    <AccountOrganizationsCard />
   </template>
 </template>
