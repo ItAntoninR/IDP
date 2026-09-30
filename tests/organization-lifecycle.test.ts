@@ -86,3 +86,67 @@ describe("admin invitations with any role", () => {
     await owner.post(`/api/admin/organizations/${organizationId}/invitations`).send({ email: uniqueEmail() }).expect(403);
   });
 });
+
+describe("organization name and logo", () => {
+  beforeEach(resetDb);
+
+  const update = (a: Agent, organizationId: string, data: Record<string, unknown>) =>
+    a.post("/api/auth/organization/update").send({ organizationId, data });
+
+  it("lets managers rename the organization and upload a logo served with caching", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner();
+    await owner.post("/api/auth/organization/set-active").send({ organizationId }).expect(200);
+
+    await update(owner, organizationId, { name: "  Acme Renamed  " }).expect(200);
+    await update(owner, organizationId, { logo: `data:image/png;base64,${PIXEL}` }).expect(200);
+
+    const insights = await owner.get("/api/account/organization").expect(200);
+    expect(insights.body.organization.name).toBe("Acme Renamed");
+    const logoUrl = insights.body.organization.logoUrl as string;
+    expect(logoUrl).toMatch(new RegExp(`^/api/public/organizations/${organizationId}/logo\\?v=[0-9a-f]{12}$`));
+
+    const context = await owner.get("/api/account/context").expect(200);
+    expect(context.body.organizations[0].logoUrl).toBe(logoUrl);
+
+    const image = await agent().get(logoUrl).buffer(true).expect(200);
+    expect(image.headers["content-type"]).toBe("image/png");
+    expect(image.headers["cache-control"]).toContain("immutable");
+    expect(Buffer.compare(image.body as Buffer, Buffer.from(PIXEL, "base64"))).toBe(0);
+
+    const entries = await auditActions("organization.update");
+    expect(entries.map((e) => (e.metadata as { changes?: { logo?: string } }).changes?.logo)).toContain("updated");
+    expect(JSON.stringify(entries)).not.toContain(PIXEL);
+
+    await update(owner, organizationId, { logo: "" }).expect(200);
+    expect((await owner.get("/api/account/organization").expect(200)).body.organization.logoUrl).toBeNull();
+    await agent().get(`/api/public/organizations/${organizationId}/logo`).expect(404);
+  });
+
+  it("validates the name and the logo and keeps other fields for admins", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner();
+    const svg = await update(owner, organizationId, { logo: "data:image/svg+xml;base64,PHN2Zy8+" });
+    expect(svg.body.code).toBe("INVALID_LOGO");
+    const script = await update(owner, organizationId, { logo: "javascript:alert(1)" });
+    expect(script.body.code).toBe("INVALID_LOGO");
+    const huge = await update(owner, organizationId, { logo: `data:image/png;base64,${"A".repeat(200_000)}` });
+    expect(huge.body.code).toBe("LOGO_TOO_LARGE");
+    const blank = await update(owner, organizationId, { name: "   " });
+    expect(blank.body.code).toBe("INVALID_ORGANIZATION_NAME");
+    const slug = await update(owner, organizationId, { slug: "hijacked" });
+    expect(slug.status).toBe(403);
+    expect(slug.body.code).toBe("ORGANIZATION_FIELD_ADMIN_ONLY");
+
+    const member = await addMember(owner, organizationId);
+    await update(member.agent, organizationId, { name: "Not allowed" }).expect(403);
+  });
+
+  it("shows logos in the admin list", async () => {
+    const { owner, adminAgent, organizationId } = await setupOrgWithOwner();
+    await update(owner, organizationId, { logo: `data:image/png;base64,${PIXEL}` }).expect(200);
+    const list = await adminAgent.get("/api/admin/organizations").expect(200);
+    expect(list.body.organizations[0].logoUrl).toMatch(/\/logo\?v=/);
+    expect(JSON.stringify(list.body)).not.toContain(PIXEL);
+    const detail = await adminAgent.get(`/api/admin/organizations/${organizationId}`).expect(200);
+    expect(detail.body.organization).not.toHaveProperty("logo");
+  });
+});

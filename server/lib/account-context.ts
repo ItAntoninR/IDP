@@ -5,6 +5,7 @@ import { APPS } from "./apps";
 import { effectiveAppAccess } from "./auth/access-claims";
 import { twoFactorStatus } from "./auth/two-factor-policy";
 import { isAppId, type AppId } from "../../shared/permissions";
+import { logoUrl, logoVersion } from "./org-profile";
 
 export async function userMemberships(userId: string) {
   const rows = await db
@@ -14,14 +15,16 @@ export async function userMemberships(userId: string) {
       slug: schema.organization.slug,
       apps: schema.organization.apps,
       requireTwoFactor: schema.organization.requireTwoFactor,
+      logoVersion,
       role: schema.member.role,
     })
     .from(schema.member)
     .innerJoin(schema.organization, eq(schema.organization.id, schema.member.organizationId))
     .where(eq(schema.member.userId, userId))
     .orderBy(schema.organization.name);
-  return rows.map((o) => ({
+  return rows.map(({ logoVersion: version, ...o }) => ({
     ...o,
+    logoUrl: logoUrl(o.id, version),
     requireTwoFactor: o.requireTwoFactor === true,
     apps: (o.apps ?? []).filter(isAppId).map((id) => ({ id, label: APPS[id].label, url: APPS[id].url })),
   }));

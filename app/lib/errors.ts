@@ -63,6 +63,10 @@ const MESSAGES: Record<string, string> = {
   TOO_MANY_REQUESTS: "Trop de tentatives. Patientez une minute avant de réessayer.",
   UNKNOWN_ROLE: "Ce rôle n'existe pas dans l'organisation.",
   ALREADY_MEMBER: "Cette personne est déjà membre de l'organisation.",
+  INVALID_ORGANIZATION_NAME: "Le nom doit contenir entre 1 et 120 caractères.",
+  INVALID_LOGO: "Le logo doit être une image PNG, JPEG ou WebP.",
+  LOGO_TOO_LARGE: "Le logo est trop lourd.",
+  ORGANIZATION_FIELD_ADMIN_ONLY: "Seule notre équipe peut modifier ce champ.",
 };
 
 export interface AppError {

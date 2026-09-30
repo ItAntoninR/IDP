@@ -6,6 +6,7 @@ import { APP_IDS, STATIC_ROLES } from "../../../shared/permissions";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "../auth/invitations";
 import { audit } from "../support/audit";
 import { likePattern } from "../org-people";
+import { logoUrl, logoVersion } from "../org-profile";
 
 export interface Actor {
   actorId: string;
@@ -66,6 +67,7 @@ export async function listOrganizations(query: z.infer<typeof listOrganizationsS
         slug: schema.organization.slug,
         apps: schema.organization.apps,
         createdAt: schema.organization.createdAt,
+        logoVersion,
         memberCount: sql<number>`(select count(*)::int from "member" m where m.organization_id = "organization"."id")`,
         pendingInvitations: sql<number>`(select count(*)::int from "invitation" i where i.organization_id = "organization"."id" and i.status = 'pending' and i.expires_at > now())`,
       })
@@ -88,15 +90,29 @@ export async function listOrganizations(query: z.infer<typeof listOrganizationsS
   ]);
 
   return {
-    organizations,
+    organizations: organizations.map(({ logoVersion: version, ...o }) => ({ ...o, logoUrl: logoUrl(o.id, version) })),
     total: totals?.n ?? 0,
     stats: { members: members?.n ?? 0, pendingInvitations: pending?.n ?? 0 },
   };
 }
 
 export async function getOrganizationDetail(id: string) {
-  const [organization] = await db.select().from(schema.organization).where(eq(schema.organization.id, id)).limit(1);
-  if (!organization) return null;
+  const [row] = await db
+    .select({
+      id: schema.organization.id,
+      name: schema.organization.name,
+      slug: schema.organization.slug,
+      apps: schema.organization.apps,
+      requireTwoFactor: schema.organization.requireTwoFactor,
+      createdAt: schema.organization.createdAt,
+      logoVersion,
+    })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, id))
+    .limit(1);
+  if (!row) return null;
+  const { logoVersion: version, ...rest } = row;
+  const organization = { ...rest, logoUrl: logoUrl(row.id, version) };
   const [[members], [pending], roles] = await Promise.all([
     db.select({ n: count() }).from(schema.member).where(eq(schema.member.organizationId, id)),
     db

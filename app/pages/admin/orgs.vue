@@ -17,6 +17,7 @@ interface OrgRow {
   createdAt: string;
   memberCount: number;
   pendingInvitations: number;
+  logoUrl: string | null;
 }
 
 interface OrgPage {
@@ -179,9 +180,7 @@ onMounted(load);
         >
           <TableCell class="pl-4">
             <div class="flex items-center gap-3">
-              <span class="bg-muted flex size-9 shrink-0 items-center justify-center rounded-lg border text-sm font-semibold">
-                {{ o.name[0]?.toUpperCase() }}
-              </span>
+              <OrgLogo :name="o.name" :logo-url="o.logoUrl" />
               <div class="min-w-0">
                 <p class="truncate font-medium">{{ o.name }}</p>
                 <p class="text-muted-foreground truncate text-xs">{{ o.slug }}</p>

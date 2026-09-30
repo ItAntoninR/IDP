@@ -39,6 +39,7 @@ export interface ManagedOrganization {
   slug: string;
   apps: string[];
   requireTwoFactor: boolean;
+  logoUrl: string | null;
 }
 
 export interface OrgRights {

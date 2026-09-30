@@ -12,6 +12,7 @@ interface OrgDetailResponse {
     apps: string[] | null;
     requireTwoFactor: boolean | null;
     createdAt: string;
+    logoUrl: string | null;
   };
   roles: string[];
   counts: { members: number; pendingInvitations: number };
@@ -105,9 +106,7 @@ watch(() => props.id, load, { immediate: true });
   <template v-else>
     <SheetHeader>
       <div class="flex items-center gap-3">
-        <span class="bg-muted flex size-11 items-center justify-center rounded-xl border text-lg font-semibold">
-          {{ detail.organization.name[0]?.toUpperCase() }}
-        </span>
+        <OrgLogo :name="detail.organization.name" :logo-url="detail.organization.logoUrl" class="size-11 rounded-xl text-lg" />
         <div class="min-w-0">
           <SheetTitle class="truncate">{{ detail.organization.name }}</SheetTitle>
           <SheetDescription>{{ detail.organization.slug }} · créée le {{ formatDate(detail.organization.createdAt) }}</SheetDescription>

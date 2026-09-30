@@ -18,6 +18,7 @@ export interface MyOrganization {
   role: string;
   apps: AppLink[];
   requireTwoFactor: boolean;
+  logoUrl: string | null;
 }
 
 let configPromise: Promise<PublicConfig> | undefined;

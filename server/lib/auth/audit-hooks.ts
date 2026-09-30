@@ -18,6 +18,11 @@ type Body = Record<string, unknown> & {
 
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 
+function auditableChanges(data: Record<string, unknown> | undefined) {
+  if (!data || !("logo" in data)) return data ?? {};
+  return { ...data, logo: data.logo ? "updated" : "removed" };
+}
+
 export async function auditAfterHook(ctx: HookContext) {
   const returned = ctx.context.returned as Record<string, unknown> | Error | undefined;
   if (returned instanceof Error) return;
@@ -75,7 +80,7 @@ export async function auditAfterHook(ctx: HookContext) {
         targetType: "organization",
         targetId: organizationId,
         organizationId,
-        metadata: { changes: body.data ?? {} },
+        metadata: { changes: auditableChanges(body.data) },
       });
     case "/organization/invite-member": {
       const invitation = returned as { id?: string; email?: string; role?: string; organizationId?: string } | undefined;

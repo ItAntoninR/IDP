@@ -49,7 +49,7 @@ export interface Dashboard {
 }
 
 export interface OrganizationInsights {
-  organization: { id: string; name: string; slug: string; apps: string[]; requireTwoFactor: boolean } | null;
+  organization: { id: string; name: string; slug: string; apps: string[]; requireTwoFactor: boolean; logoUrl: string | null } | null;
   stats: { members: number; twoFactorEnabled: number; pendingInvitations: number; customRoles: number };
   roleCounts: Record<string, number>;
   recentActivity: {

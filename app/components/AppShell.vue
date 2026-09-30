@@ -159,7 +159,8 @@ const initials = computed(() => {
             class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04]"
             aria-label="Changer d'organisation"
           >
-            <span class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
+            <OrgLogo v-if="context.active.logoUrl" :name="context.active.name" :logo-url="context.active.logoUrl" class="bg-background size-8" />
+            <span v-else class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
               <KeyRound class="size-4" />
             </span>
             <span class="flex min-w-0 flex-1 flex-col leading-tight">
@@ -171,14 +172,20 @@ const initials = computed(() => {
           <DropdownMenuContent align="start" class="w-60">
             <DropdownMenuLabel>Organisations</DropdownMenuLabel>
             <DropdownMenuItem v-for="org in context.organizations" :key="org.id" @select="selectOrganization(org.id)">
-              <span class="bg-muted flex size-6 items-center justify-center rounded text-xs font-semibold">{{ org.name[0]?.toUpperCase() }}</span>
+              <OrgLogo :name="org.name" :logo-url="org.logoUrl" class="size-6 rounded text-xs" />
               <span class="flex-1 truncate">{{ org.name }}</span>
               <Check v-if="org.id === context.active.id" class="!text-foreground" />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <NuxtLink v-else to="/" class="flex min-w-0 items-center gap-2.5 p-1.5">
-          <span class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
+          <OrgLogo
+            v-if="!isAdmin && context?.active?.logoUrl"
+            :name="context.active.name"
+            :logo-url="context.active.logoUrl"
+            class="bg-background size-8"
+          />
+          <span v-else class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
             <KeyRound class="size-4" />
           </span>
           <span class="flex min-w-0 flex-col leading-tight">

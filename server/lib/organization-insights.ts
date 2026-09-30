@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gte, notLike, sql } from "drizzle-orm";
 import { db, schema } from "./db/index";
+import { logoUrl, logoVersion } from "./org-profile";
 
 const RECENT_ACTIVITY = 6;
 
@@ -12,6 +13,7 @@ export async function organizationInsights(organizationId: string) {
         slug: schema.organization.slug,
         apps: schema.organization.apps,
         requireTwoFactor: schema.organization.requireTwoFactor,
+        logoVersion,
       })
       .from(schema.organization)
       .where(eq(schema.organization.id, organizationId))
@@ -58,7 +60,16 @@ export async function organizationInsights(organizationId: string) {
   ]);
 
   return {
-    organization: organization ? { ...organization, apps: organization.apps ?? [], requireTwoFactor: organization.requireTwoFactor === true } : null,
+    organization: organization
+      ? {
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          apps: organization.apps ?? [],
+          requireTwoFactor: organization.requireTwoFactor === true,
+          logoUrl: logoUrl(organization.id, organization.logoVersion),
+        }
+      : null,
     stats: {
       members: members?.total ?? 0,
       twoFactorEnabled: members?.protected ?? 0,
