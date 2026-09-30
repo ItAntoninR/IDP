@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = [
   "user.role.update",
   "user.two_factor.reset",
   "user.delete",
+  "user.export",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

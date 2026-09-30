@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { KeyRound, LogIn, ShieldCheck, ShieldOff, Trash2 } from "lucide-vue-next";
+import { Download, KeyRound, LogIn, ShieldCheck, ShieldOff, Trash2 } from "lucide-vue-next";
 import { authClient, isGlobalAdmin } from "~/lib/auth-client";
 import { formatDate } from "~/lib/labels";
 import type { AdminUser } from "~/lib/types";
 
 const props = defineProps<{ user: AdminUser; busy?: boolean }>();
-const emit = defineEmits<{ impersonate: []; ban: []; unban: []; resetTwoFactor: []; delete: [] }>();
+const emit = defineEmits<{ impersonate: []; ban: []; unban: []; resetTwoFactor: []; delete: []; export: [] }>();
 
 const session = authClient.useSession();
 const isSelf = computed(() => session.value.data?.user.id === props.user.id);
@@ -78,6 +78,17 @@ const initials = computed(() =>
         {{ user.banReason || "Sans motif" }} ·
         {{ user.banExpires ? `jusqu'au ${formatDate(user.banExpires)}` : "suspension définitive" }}
       </p>
+    </section>
+
+    <section class="space-y-3">
+      <h3 class="text-sm font-semibold">Données personnelles</h3>
+      <div class="flex items-center justify-between gap-4 rounded-lg border p-3">
+        <div>
+          <p class="text-sm font-medium">Exporter les données</p>
+          <p class="text-muted-foreground text-xs">Pour une demande d'accès (RGPD). Fichier JSON, tracé dans le journal, l'utilisateur est prévenu par email.</p>
+        </div>
+        <Button variant="outline" size="sm" :disabled="busy" @click="emit('export')"><Download /> Exporter</Button>
+      </div>
     </section>
 
     <section v-if="!isSelf" class="space-y-3">

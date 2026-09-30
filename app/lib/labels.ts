@@ -45,6 +45,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "user.role.update": "Changement de rôle global",
   "user.two_factor.reset": "Réinitialisation de la 2FA",
   "user.delete": "Suppression de compte",
+  "user.export": "Export des données",
 };
 
 export const formatDate = (value: string | Date | null | undefined) =>

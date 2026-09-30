@@ -127,6 +127,24 @@ async function confirmReset() {
   }
 }
 
+async function exportData(u: AdminUser) {
+  busy.value = true;
+  try {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(u.id)}/export`, { headers: { accept: "application/json" } });
+    if (!res.ok) throw await res.json().catch(() => ({ status: res.status }));
+    const filename = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? "donnees.json";
+    const url = URL.createObjectURL(await res.blob());
+    const link = Object.assign(document.createElement("a"), { href: url, download: filename });
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Données de ${u.email} exportées.`);
+  } catch (e) {
+    toast.error(errorMessage(e));
+  } finally {
+    busy.value = false;
+  }
+}
+
 function askDelete(u: AdminUser) {
   deleteTarget.value = u;
   deleteConfirm.value = "";
@@ -283,6 +301,7 @@ onMounted(load);
         @unban="unban(selected)"
         @reset-two-factor="askReset(selected)"
         @delete="askDelete(selected)"
+        @export="exportData(selected)"
       />
     </SheetContent>
   </Sheet>
