@@ -21,8 +21,12 @@ export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook("render:html", (html, { event }) => {
     const markup = [...html.head, ...html.bodyPrepend, ...html.body, ...html.bodyAppend].join("\n");
     const hashes = [...markup.matchAll(INLINE_SCRIPT)].map(
-      (m) => `'sha256-${createHash("sha256").update(m[1] ?? "").digest("base64")}'`,
+      (m) =>
+        `'sha256-${createHash("sha256")
+          .update(m[1] ?? "")
+          .digest("base64")}'`,
     );
+
     setResponseHeader(
       event,
       "content-security-policy",

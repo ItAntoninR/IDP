@@ -22,6 +22,7 @@ describe("invitation-only sign-up", () => {
     const res = await agent()
       .post("/api/auth/sign-up/email")
       .send({ email: uniqueEmail(), password: PASSWORD, name: "Nobody" });
+
     expect(res.status).toBe(200);
     expect(res.body.token).toBeNull();
     expect(await db.select().from(schema.user)).toHaveLength(0);
@@ -30,9 +31,11 @@ describe("invitation-only sign-up", () => {
   it("does not create a user through a magic link without invitation", async () => {
     const email = uniqueEmail("magic");
     const a = agent();
+
     await a.post("/api/auth/sign-in/magic-link").send({ email, callbackURL: "/account" }).expect(200);
     const mail = await waitForEmail(email, { subject: /lien de connexion/ });
     const res = await a.get(extractLink(mail.text).path);
+
     expect(res.status).toBeGreaterThanOrEqual(300);
     expect(await db.select().from(schema.user).where(eq(schema.user.email, email))).toHaveLength(0);
   });
@@ -40,6 +43,7 @@ describe("invitation-only sign-up", () => {
   it("rejects sign-up when the invitation expired", async () => {
     const { agent: adminAgent } = await signedInAdmin();
     const org = await createOrganization(adminAgent);
+
     await db
       .update(schema.invitation)
       .set({ expiresAt: new Date(Date.now() - 1000) })
@@ -60,16 +64,20 @@ describe("organization creation", () => {
     const org = await createOrganization(adminAgent, { apps: ["datahub"] });
 
     const [row] = await db.select().from(schema.organization).where(eq(schema.organization.id, org.organizationId));
+
     expect(row?.apps).toEqual(["datahub"]);
     expect(await db.select().from(schema.member).where(eq(schema.member.userId, admin.id))).toHaveLength(0);
 
     const [invitation] = await db.select().from(schema.invitation).where(eq(schema.invitation.id, org.invitationId));
+
     expect(invitation?.role).toBe("owner");
     const days = (invitation!.expiresAt.getTime() - Date.now()) / 86_400_000;
+
     expect(days).toBeGreaterThan(6.9);
 
     const mail = await waitForEmail(org.ownerEmail, { subject: /Invitation/ });
     const { url } = extractLink(mail.text);
+
     expect(url.pathname).toBe(`/invite/${org.invitationId}`);
     expect(url.searchParams.get("email")).toBe(org.ownerEmail);
   });
@@ -77,11 +85,13 @@ describe("organization creation", () => {
   it("forbids non-admins from creating organizations", async () => {
     const user = await createUser();
     const a = await signIn(user.email);
+
     await a
       .post("/api/admin/organizations")
       .send({ name: "X", slug: "x-org", apps: [], ownerEmail: uniqueEmail() })
       .expect(403);
     const res = await a.post("/api/auth/organization/create").send({ name: "X", slug: "x-org" });
+
     expect(res.status).toBe(403);
     await agent().post("/api/admin/organizations").send({}).expect(401);
   });
@@ -91,6 +101,7 @@ describe("organization creation", () => {
     const res = await adminAgent
       .post("/api/admin/organizations")
       .send({ name: "X", slug: "Not A Slug", apps: ["unknown"], ownerEmail: "nope" });
+
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
   });
@@ -100,9 +111,11 @@ describe("organization creation", () => {
     const res = await owner
       .post("/api/auth/organization/update")
       .send({ organizationId, data: { apps: ["datahub", "app"] } });
+
     expect(res.status).toBe(403);
     expect(res.body.code).toBe("APPS_CEILING_ADMIN_ONLY");
     const [row] = await db.select().from(schema.organization).where(eq(schema.organization.id, organizationId));
+
     expect(row?.apps).toEqual(["datahub"]);
   });
 
@@ -110,12 +123,14 @@ describe("organization creation", () => {
     const { adminAgent, organizationId } = await setupOrgWithOwner(["datahub"]);
     const res = await adminAgent.get("/api/admin/organizations").expect(200);
     const row = res.body.organizations.find((o: { id: string }) => o.id === organizationId);
+
     expect(row).toMatchObject({ apps: ["datahub"], memberCount: 1 });
   });
 
   it("lets an admin update the apps ceiling", async () => {
     const { adminAgent, organizationId } = await setupOrgWithOwner(["datahub"]);
     const res = await adminAgent.patch(`/api/admin/organizations/${organizationId}`).send({ apps: ["app"] });
+
     expect(res.status).toBe(200);
     expect(res.body.organization.apps).toEqual(["app"]);
   });
@@ -127,12 +142,14 @@ describe("invitation flow", () => {
   it("turns the invited owner into a member with an active organization", async () => {
     const { owner, organizationId, ownerEmail } = await setupOrgWithOwner();
     const session = await owner.get("/api/auth/get-session").expect(200);
+
     expect(session.body.session.activeOrganizationId).toBe(organizationId);
     const [m] = await db
       .select()
       .from(schema.member)
       .innerJoin(schema.user, eq(schema.user.id, schema.member.userId))
       .where(eq(schema.user.email, ownerEmail));
+
     expect(m?.member.role).toBe("owner");
   });
 
@@ -142,6 +159,7 @@ describe("invitation flow", () => {
     const invite = await owner
       .post("/api/auth/organization/invite-member")
       .send({ email, role: "member", organizationId });
+
     expect(invite.status).toBe(200);
 
     const inviteMail = await waitForEmail(email, { subject: /Invitation/ });
@@ -149,17 +167,20 @@ describe("invitation flow", () => {
     const invitationId = url.pathname.split("/").pop()!;
 
     const a = agent();
+
     await a
       .post("/api/auth/sign-in/magic-link")
       .send({ email, callbackURL: url.pathname + url.search })
       .expect(200);
     const magic = await waitForEmail(email, { subject: /lien de connexion/ });
     const verify = await a.get(extractLink(magic.text).path);
+
     expect(verify.status).toBe(302);
     expect(verify.headers.location).toContain(`/invite/${invitationId}`);
 
     await a.post("/api/auth/organization/accept-invitation").send({ invitationId }).expect(200);
     const members = await db.select().from(schema.member).where(eq(schema.member.organizationId, organizationId));
+
     expect(members.map((m) => m.role).sort()).toEqual(["member", "owner"]);
   });
 
@@ -171,6 +192,7 @@ describe("invitation flow", () => {
       .send({ email: existing.email, role: "member", organizationId })
       .expect(200);
     const a = await signIn(existing.email);
+
     await a.post("/api/auth/organization/accept-invitation").send({ invitationId: inv.body.id }).expect(200);
   });
 
@@ -183,6 +205,7 @@ describe("invitation flow", () => {
     const intruder = await createUser();
     const a = await signIn(intruder.email);
     const res = await a.post("/api/auth/organization/accept-invitation").send({ invitationId: inv.body.id });
+
     expect(res.status).toBe(403);
   });
 });
@@ -197,18 +220,23 @@ describe("dynamic roles", () => {
       role: "analyst",
       permission: { datahub: ["access", "export"] },
     });
+
     expect(res.status).toBe(200);
 
     const email = uniqueEmail("analyst");
     const inv = await owner
       .post("/api/auth/organization/invite-member")
       .send({ email, role: "analyst", organizationId });
+
     expect(inv.status).toBe(200);
 
     const roles = await db
       .select()
       .from(schema.organizationRole)
-      .where(and(eq(schema.organizationRole.organizationId, organizationId), eq(schema.organizationRole.role, "analyst")));
+      .where(
+        and(eq(schema.organizationRole.organizationId, organizationId), eq(schema.organizationRole.role, "analyst")),
+      );
+
     expect(JSON.parse(roles[0]!.permission)).toEqual({ datahub: ["access", "export"] });
   });
 
@@ -219,6 +247,7 @@ describe("dynamic roles", () => {
       role: "sneaky",
       permission: { app: ["access"] },
     });
+
     expect(create.status).toBe(400);
     expect(create.body.code).toBe("PERMISSION_OUTSIDE_CEILING");
 
@@ -231,6 +260,7 @@ describe("dynamic roles", () => {
       roleName: "viewer",
       data: { permission: { datahub: ["access"], app: ["admin"] } },
     });
+
     expect(update.status).toBe(400);
     expect(update.body.code).toBe("PERMISSION_OUTSIDE_CEILING");
   });
@@ -243,10 +273,12 @@ describe("dynamic roles", () => {
       .send({ email: memberUser.email, role: "member", organizationId })
       .expect(200);
     const m = await signIn(memberUser.email);
+
     await m.post("/api/auth/organization/accept-invitation").send({ invitationId: inv.body.id }).expect(200);
     const res = await m
       .post("/api/auth/organization/create-role")
       .send({ organizationId, role: "hacker", permission: { datahub: ["access"] } });
+
     expect(res.status).toBe(403);
   });
 });

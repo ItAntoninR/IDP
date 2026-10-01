@@ -16,12 +16,16 @@ export function useManagedOrganization() {
 
   async function refresh() {
     const id = org.value?.id ?? (await loadContext()).active?.id;
+
     if (!id) return;
     const has = (permissions: Record<string, string[]>) =>
-      authClient.organization.hasPermission({ organizationId: id, permissions } as never).then((r) => !!r.data?.success);
+      authClient.organization
+        .hasPermission({ organizationId: id, permissions } as never)
+        .then((r) => !!r.data?.success);
     const [stats, roleList, members, invite, ac, settings] = await Promise.all([
       $fetch<OrganizationInsights>("/api/account/organization").catch((e: { data?: unknown }) => {
         error.value = errorMessage(e.data ?? e);
+
         return null;
       }),
       authClient.organization.listRoles({ query: { organizationId: id } }),
@@ -30,12 +34,15 @@ export function useManagedOrganization() {
       has({ ac: ["create"] }),
       has({ organization: ["update"] }),
     ]);
+
     if (!stats?.organization) return;
     org.value = stats.organization;
-    roles.value = ((roleList.data ?? []) as unknown as { id: string; role: string; permission: unknown }[]).map((r) => ({
-      ...r,
-      permission: parsePermission(r.permission),
-    }));
+    roles.value = ((roleList.data ?? []) as unknown as { id: string; role: string; permission: unknown }[]).map(
+      (r) => ({
+        ...r,
+        permission: parsePermission(r.permission),
+      }),
+    );
     rights.value = { members, invite, roles: ac, settings };
     insights.value = stats;
   }
@@ -44,12 +51,14 @@ export function useManagedOrganization() {
     error.value = "";
     try {
       const context = await loadContext();
+
       if (!context.active?.canManage) return navigateTo("/", { replace: true });
       appLabels.value = context.active.apps.map((a) => a.label).join(", ") || "aucune";
       if (org.value?.id !== context.active.id) {
         org.value = null;
         rights.value = null;
       }
+
       if (!org.value) await refresh();
       else refresh();
     } catch (e) {

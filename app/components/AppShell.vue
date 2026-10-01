@@ -58,6 +58,7 @@ interface NavLink {
 const GROUPS = ["/org", "/account"];
 const inGroup = (path: string, group: string) => path === group || path.startsWith(`${group}/`);
 const expanded = ref<Record<string, boolean>>(Object.fromEntries(GROUPS.map((g) => [g, inGroup(route.path, g)])));
+
 watch(
   () => route.path,
   (path) => {
@@ -123,6 +124,7 @@ const sections = computed<{ label: string; links: NavLink[] }[]>(() => [
 
 const initials = computed(() => {
   const user = session.value.data?.user;
+
   return (user?.name || user?.email || "")
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -130,15 +132,22 @@ const initials = computed(() => {
     .map((part) => part[0]!.toUpperCase())
     .join("");
 });
-
 </script>
 
 <template>
   <div class="bg-muted/60 flex min-h-screen">
-    <header class="bg-background/80 fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b px-3 backdrop-blur lg:hidden">
-      <Button variant="ghost" size="icon" aria-label="Ouvrir le menu" @click="open = true">
+    <header
+      class="bg-background/80 fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b px-3 backdrop-blur lg:hidden"
+    >
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Ouvrir le menu"
+        @click="open = true"
+      >
         <Menu class="size-5" />
       </Button>
+
       <span class="text-sm font-semibold">Auth</span>
     </header>
 
@@ -148,7 +157,11 @@ const initials = computed(() => {
       enter-from-class="opacity-0"
       leave-to-class="opacity-0"
     >
-      <div v-if="open" class="fixed inset-0 z-40 bg-black/30 lg:hidden" @click="open = false" />
+      <div
+        v-if="open"
+        class="fixed inset-0 z-40 bg-black/30 lg:hidden"
+        @click="open = false"
+      />
     </Transition>
 
     <aside
@@ -161,51 +174,112 @@ const initials = computed(() => {
             class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-black/[0.04] data-[state=open]:bg-black/[0.04]"
             aria-label="Changer d'organisation"
           >
-            <OrgLogo v-if="context.active.logoUrl" :name="context.active.name" :logo-url="context.active.logoUrl" class="bg-background size-8" />
-            <span v-else class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
+            <OrgLogo
+              v-if="context.active.logoUrl"
+              :name="context.active.name"
+              :logo-url="context.active.logoUrl"
+              class="bg-background size-8"
+            />
+
+            <span
+              v-else
+              class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm"
+            >
               <KeyRound class="size-4" />
             </span>
+
             <span class="flex min-w-0 flex-1 flex-col leading-tight">
               <span class="text-sm font-semibold">Auth</span>
+
               <span class="text-muted-foreground truncate text-xs">{{ context.active.name }}</span>
             </span>
+
             <ChevronsUpDown class="text-muted-foreground size-4 shrink-0" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" class="w-60">
+
+          <DropdownMenuContent
+            align="start"
+            class="w-60"
+          >
             <DropdownMenuLabel>Organisations</DropdownMenuLabel>
-            <DropdownMenuItem v-for="org in context.organizations" :key="org.id" @select="selectOrganization(org.id)">
-              <OrgLogo :name="org.name" :logo-url="org.logoUrl" class="size-6 rounded text-xs" />
+
+            <DropdownMenuItem
+              v-for="org in context.organizations"
+              :key="org.id"
+              @select="selectOrganization(org.id)"
+            >
+              <OrgLogo
+                :name="org.name"
+                :logo-url="org.logoUrl"
+                class="size-6 rounded text-xs"
+              />
+
               <span class="flex-1 truncate">{{ org.name }}</span>
-              <Check v-if="org.id === context.active.id" class="!text-foreground" />
+
+              <Check
+                v-if="org.id === context.active.id"
+                class="!text-foreground"
+              />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <NuxtLink v-else to="/" class="flex min-w-0 items-center gap-2.5 p-1.5">
+
+        <NuxtLink
+          v-else
+          to="/"
+          class="flex min-w-0 items-center gap-2.5 p-1.5"
+        >
           <OrgLogo
             v-if="!isAdmin && context?.active?.logoUrl"
             :name="context.active.name"
             :logo-url="context.active.logoUrl"
             class="bg-background size-8"
           />
-          <span v-else class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
+
+          <span
+            v-else
+            class="bg-brand text-brand-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm"
+          >
             <KeyRound class="size-4" />
           </span>
+
           <span class="flex min-w-0 flex-col leading-tight">
             <span class="text-sm font-semibold">Auth</span>
-            <span class="text-muted-foreground truncate text-xs">{{ isAdmin ? "Administration" : (context?.active?.name ?? "Espace client") }}</span>
+
+            <span class="text-muted-foreground truncate text-xs">
+              {{ isAdmin ? "Administration" : (context?.active?.name ?? "Espace client") }}
+            </span>
           </span>
         </NuxtLink>
-        <Button variant="ghost" size="icon" class="lg:hidden" aria-label="Fermer le menu" @click="open = false">
+
+        <Button
+          variant="ghost"
+          size="icon"
+          class="lg:hidden"
+          aria-label="Fermer le menu"
+          @click="open = false"
+        >
           <X class="size-5" />
         </Button>
       </div>
 
       <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-4">
-        <div v-for="section in sections" :key="section.label" class="space-y-1">
-          <p v-if="section.label" class="text-muted-foreground/80 px-2.5 pb-1 text-[11px] font-medium tracking-wider uppercase">
+        <div
+          v-for="section in sections"
+          :key="section.label"
+          class="space-y-1"
+        >
+          <p
+            v-if="section.label"
+            class="text-muted-foreground/80 px-2.5 pb-1 text-[11px] font-medium tracking-wider uppercase"
+          >
             {{ section.label }}
           </p>
-          <template v-for="link in section.links" :key="link.to">
+
+          <template
+            v-for="link in section.links"
+            :key="link.to"
+          >
             <div v-if="link.children">
               <button
                 type="button"
@@ -214,10 +288,19 @@ const initials = computed(() => {
                 :aria-expanded="expanded[link.to]"
                 @click="toggleGroup(link.to)"
               >
-                <component :is="link.icon" class="size-4 opacity-70" />
+                <component
+                  :is="link.icon"
+                  class="size-4 opacity-70"
+                />
+
                 <span class="flex-1 text-left">{{ link.label }}</span>
-                <ChevronRight class="size-3.5 opacity-60 transition-transform" :class="{ 'rotate-90': expanded[link.to] }" />
+
+                <ChevronRight
+                  class="size-3.5 opacity-60 transition-transform"
+                  :class="{ 'rotate-90': expanded[link.to] }"
+                />
               </button>
+
               <div
                 class="grid transition-[grid-template-rows] duration-200"
                 :class="expanded[link.to] ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
@@ -237,6 +320,7 @@ const initials = computed(() => {
                 </div>
               </div>
             </div>
+
             <NuxtLink
               v-else
               :to="link.to"
@@ -245,7 +329,10 @@ const initials = computed(() => {
               class="group text-muted-foreground hover:text-foreground flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm transition-colors hover:bg-black/[0.04]"
               exact-active-class="!bg-background !text-foreground !border-border font-medium shadow-sm"
             >
-              <component :is="link.icon" class="size-4 opacity-70 group-[.router-link-exact-active]:opacity-100" />
+              <component
+                :is="link.icon"
+                class="size-4 opacity-70 group-[.router-link-exact-active]:opacity-100"
+              />
               {{ link.label }}
             </NuxtLink>
           </template>
@@ -253,14 +340,26 @@ const initials = computed(() => {
       </nav>
 
       <div class="mx-3 flex items-center gap-2.5 border-t py-3">
-        <span class="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium shadow-sm">
+        <span
+          class="bg-background flex size-8 shrink-0 items-center justify-center rounded-md border text-xs font-medium shadow-sm"
+        >
           {{ initials }}
         </span>
+
         <span class="flex min-w-0 flex-1 flex-col">
           <span class="truncate text-sm font-medium">{{ session.data?.user.name }}</span>
+
           <span class="text-muted-foreground truncate text-xs">{{ session.data?.user.email }}</span>
         </span>
-        <Button variant="ghost" size="icon" class="size-8 shrink-0" aria-label="Se déconnecter" title="Se déconnecter" @click="signOut">
+
+        <Button
+          variant="ghost"
+          size="icon"
+          class="size-8 shrink-0"
+          aria-label="Se déconnecter"
+          title="Se déconnecter"
+          @click="signOut"
+        >
           <LogOut class="size-4" />
         </Button>
       </div>

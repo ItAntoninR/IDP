@@ -34,15 +34,25 @@ export async function recordActivity(session: { userId: string; impersonatedBy?:
     .where(eq(schema.user.id, session.userId));
 }
 
-export async function pseudonymizeUser(userId: string, reason: DeletionReason, actor: { actorId: string | null; impersonatedBy?: string | null }) {
+export async function pseudonymizeUser(
+  userId: string,
+  reason: DeletionReason,
+  actor: { actorId: string | null; impersonatedBy?: string | null },
+) {
   const now = new Date();
   const email = await db.transaction(async (tx) => {
     const [user] = await tx
-      .select({ id: schema.user.id, name: schema.user.name, email: schema.user.email, createdAt: schema.user.createdAt })
+      .select({
+        id: schema.user.id,
+        name: schema.user.name,
+        email: schema.user.email,
+        createdAt: schema.user.createdAt,
+      })
       .from(schema.user)
       .where(and(eq(schema.user.id, userId), isNull(schema.user.deletedAt)))
       .for("update")
       .limit(1);
+
     if (!user) return null;
 
     const [sessions, devices] = await Promise.all([
@@ -56,7 +66,11 @@ export async function pseudonymizeUser(userId: string, reason: DeletionReason, a
         .from(schema.session)
         .where(eq(schema.session.userId, userId)),
       tx
-        .select({ userAgent: schema.knownDevice.userAgent, firstSeenAt: schema.knownDevice.createdAt, lastSeenAt: schema.knownDevice.lastSeenAt })
+        .select({
+          userAgent: schema.knownDevice.userAgent,
+          firstSeenAt: schema.knownDevice.createdAt,
+          lastSeenAt: schema.knownDevice.lastSeenAt,
+        })
         .from(schema.knownDevice)
         .where(eq(schema.knownDevice.userId, userId)),
     ]);
@@ -105,8 +119,10 @@ export async function pseudonymizeUser(userId: string, reason: DeletionReason, a
         deletedAt: now,
       })
       .where(eq(schema.user.id, userId));
+
     return user.email;
   });
+
   if (!email) return false;
 
   sendEmailInBackground(email, accountDeletedTemplate(reason));
@@ -118,6 +134,7 @@ export async function pseudonymizeUser(userId: string, reason: DeletionReason, a
     targetId: userId,
     metadata: { by: reason },
   });
+
   return true;
 }
 
@@ -134,20 +151,31 @@ async function handleInactiveAccounts(now: Date) {
     .from(schema.user)
     .where(and(activeCustomers, lt(lastActivity, warningCutoff), isNull(schema.user.inactivityWarnedAt)));
   const signInUrl = new URL("/sign-in", env.AUTH_BASE_URL).toString();
+
   for (const user of toWarn) {
     await db.update(schema.user).set({ inactivityWarnedAt: now }).where(eq(schema.user.id, user.id));
-    const deletionDate = new Date(Math.max(now.getTime() + RETENTION.inactivityWarningDays * DAY, new Date(user.lastActivity).getTime() + RETENTION.inactivityDays * DAY));
+    const deletionDate = new Date(
+      Math.max(
+        now.getTime() + RETENTION.inactivityWarningDays * DAY,
+        new Date(user.lastActivity).getTime() + RETENTION.inactivityDays * DAY,
+      ),
+    );
+
     sendEmailInBackground(user.email, inactivityWarningTemplate(signInUrl, deletionDate));
   }
 
   const toDelete = await db
     .select({ id: schema.user.id })
     .from(schema.user)
-    .where(and(activeCustomers, lt(lastActivity, deletionCutoff), lte(schema.user.inactivityWarnedAt, warnedLongEnough)));
+    .where(
+      and(activeCustomers, lt(lastActivity, deletionCutoff), lte(schema.user.inactivityWarnedAt, warnedLongEnough)),
+    );
   let deleted = 0;
   let kept = 0;
+
   for (const user of toDelete) {
     const owned = await soleOwnedOrganizations(user.id);
+
     if (owned.length) {
       kept++;
       await db.update(schema.user).set({ inactivityWarnedAt: now }).where(eq(schema.user.id, user.id));
@@ -159,19 +187,43 @@ async function handleInactiveAccounts(now: Date) {
       });
       continue;
     }
+
     if (await pseudonymizeUser(user.id, "inactivity", { actorId: null })) deleted++;
   }
+
   return { warned: toWarn.length, deleted, kept };
 }
 
 export async function applyRetention(now = new Date()) {
   const purge = async <T>(query: Promise<T[]>) => (await query).length;
   const [auditLog, knownDevices, archives, invitations, verifications, sessions, rateLimits] = await Promise.all([
-    purge(db.delete(schema.auditLog).where(lt(schema.auditLog.createdAt, daysBefore(now, RETENTION.auditLogDays))).returning({ id: schema.auditLog.id })),
-    purge(db.delete(schema.knownDevice).where(lt(schema.knownDevice.lastSeenAt, daysBefore(now, RETENTION.knownDeviceDays))).returning({ id: schema.knownDevice.id })),
-    purge(db.delete(schema.deletedAccountArchive).where(lt(schema.deletedAccountArchive.expiresAt, now)).returning({ id: schema.deletedAccountArchive.id })),
-    purge(db.delete(schema.invitation).where(lt(schema.invitation.expiresAt, now)).returning({ id: schema.invitation.id })),
-    purge(db.delete(schema.verification).where(lt(schema.verification.expiresAt, now)).returning({ id: schema.verification.id })),
+    purge(
+      db
+        .delete(schema.auditLog)
+        .where(lt(schema.auditLog.createdAt, daysBefore(now, RETENTION.auditLogDays)))
+        .returning({ id: schema.auditLog.id }),
+    ),
+    purge(
+      db
+        .delete(schema.knownDevice)
+        .where(lt(schema.knownDevice.lastSeenAt, daysBefore(now, RETENTION.knownDeviceDays)))
+        .returning({ id: schema.knownDevice.id }),
+    ),
+    purge(
+      db
+        .delete(schema.deletedAccountArchive)
+        .where(lt(schema.deletedAccountArchive.expiresAt, now))
+        .returning({ id: schema.deletedAccountArchive.id }),
+    ),
+    purge(
+      db.delete(schema.invitation).where(lt(schema.invitation.expiresAt, now)).returning({ id: schema.invitation.id }),
+    ),
+    purge(
+      db
+        .delete(schema.verification)
+        .where(lt(schema.verification.expiresAt, now))
+        .returning({ id: schema.verification.id }),
+    ),
     purge(db.delete(schema.session).where(lt(schema.session.expiresAt, now)).returning({ id: schema.session.id })),
     purge(
       db
@@ -181,17 +233,24 @@ export async function applyRetention(now = new Date()) {
     ),
   ]);
   const accounts = await handleInactiveAccounts(now);
+
   return { auditLog, knownDevices, archives, invitations, verifications, sessions, rateLimits, accounts };
 }
 
 export async function runRetentionOnce(now = new Date()) {
   const client = await pool.connect();
+
   try {
-    const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock(hashtext($1)) as locked", [LOCK_KEY]);
+    const { rows } = await client.query<{ locked: boolean }>("select pg_try_advisory_lock(hashtext($1)) as locked", [
+      LOCK_KEY,
+    ]);
+
     if (!rows[0]?.locked) return null;
     try {
       const result = await applyRetention(now);
+
       logger.info("retention applied", result);
+
       return result;
     } finally {
       await client.query("select pg_advisory_unlock(hashtext($1))", [LOCK_KEY]);

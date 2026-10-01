@@ -50,17 +50,21 @@ export function describeDevice(userAgent: string | null | undefined): string {
           : /Linux/.test(userAgent)
             ? "Linux"
             : "système inconnu";
+
   return `${browser} sur ${os}`;
 }
 
 function signInMethod(ctx: HookContext): string | null {
   const path = ctx.path ?? "";
   const match = SIGN_IN_METHODS.find(([test]) => test(path));
+
   if (!match) return null;
   if (path.startsWith("/callback/")) {
     const provider = ctx.params?.id ?? path.split("/").pop() ?? "";
+
     return PROVIDER_LABELS[provider] ?? match[1];
   }
+
   return match[1];
 }
 
@@ -82,14 +86,25 @@ export function sendSecurityAlert(
 
 export async function alertOnNewDevice(ctx: HookContext) {
   const created = ctx.context.newSession as
-    | { session: { userId: string; userAgent?: string | null; ipAddress?: string | null; impersonatedBy?: string | null }; user: { email: string } }
+    | {
+        session: {
+          userId: string;
+          userAgent?: string | null;
+          ipAddress?: string | null;
+          impersonatedBy?: string | null;
+        };
+        user: { email: string };
+      }
     | null
     | undefined;
+
   if (!created || created.session.impersonatedBy) return;
   const method = signInMethod(ctx);
+
   if (!method) return;
 
   let deviceId = ctx.getCookie(DEVICE_COOKIE);
+
   if (!deviceId) {
     deviceId = randomUUID();
     ctx.setCookie(DEVICE_COOKIE, deviceId, {
@@ -114,6 +129,7 @@ export async function alertOnNewDevice(ctx: HookContext) {
 
   if (known) {
     await db.update(schema.knownDevice).set({ lastSeenAt: new Date() }).where(eq(schema.knownDevice.id, known.id));
+
     return;
   }
 
@@ -140,6 +156,7 @@ export async function alertOnPasswordChange(ctx: HookContext) {
   if (ctx.path !== "/change-password" || ctx.context.returned instanceof Error) return;
   const session = ctx.context.session as { user?: { email: string } } | null | undefined;
   const email = session?.user?.email;
+
   if (!email) return;
   notifyPasswordChanged(email);
 }
@@ -155,16 +172,22 @@ export function notifyPasswordChanged(email: string) {
 export function twoFactorChange(user: { twoFactorEnabled?: boolean | null }, path: string | undefined) {
   if (path === "/two-factor/disable") return "disabled" as const;
   if (path?.startsWith("/two-factor/") && user.twoFactorEnabled) return "enabled" as const;
+
   return null;
 }
 
-export function alertOnTwoFactorChange(user: { email: string; twoFactorEnabled?: boolean | null }, path: string | undefined) {
+export function alertOnTwoFactorChange(
+  user: { email: string; twoFactorEnabled?: boolean | null },
+  path: string | undefined,
+) {
   const change = twoFactorChange(user, path);
+
   if (change === "disabled") {
     sendSecurityAlert(user.email, {
       subject: "Double authentification désactivée",
       title: "La double authentification est désactivée",
-      intro: "L'application d'authentification a été retirée de votre compte : un code n'est plus demandé à la connexion.",
+      intro:
+        "L'application d'authentification a été retirée de votre compte : un code n'est plus demandé à la connexion.",
     });
   } else if (change === "enabled") {
     sendSecurityAlert(user.email, {

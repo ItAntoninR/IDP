@@ -20,26 +20,53 @@ onMounted(load);
 </script>
 
 <template>
-  <FormAlert v-if="error" :message="error" />
-  <PageLoader v-else-if="!org || !rights" />
-  <template v-else>
-    <PageHeader :title="org.name" :description="summary">
-      <template v-if="rights.invite" #actions>
-        <Button @click="inviteOpen = true"><UserPlus /> Inviter un membre</Button>
-      </template>
-    </PageHeader>
-
-    <OrgSecurityBanner :required="org.requireTwoFactor === true" :stats="insights?.stats ?? null" :can-manage="rights.settings" />
-
-    <OrgPeopleTable ref="people" :org="org" :roles="roleNames" :rights="rights" @changed="refresh" @invite="inviteOpen = true" />
-
-    <OrgInviteDialog
-      v-if="rights.invite"
-      v-model:open="inviteOpen"
-      :organization-id="org.id"
-      :organization-name="org.name"
-      :roles="roleNames"
-      @invited="onInvited"
+  <div class="space-y-6">
+    <FormAlert
+      v-if="error"
+      :message="error"
     />
-  </template>
+
+    <PageLoader v-else-if="!org || !rights" />
+
+    <template v-else>
+      <PageHeader
+        :title="org.name"
+        :description="summary"
+      >
+        <template
+          v-if="rights.invite"
+          #actions
+        >
+          <Button @click="inviteOpen = true">
+            <UserPlus />
+            Inviter un membre
+          </Button>
+        </template>
+      </PageHeader>
+
+      <OrgSecurityBanner
+        :required="org.requireTwoFactor === true"
+        :stats="insights?.stats ?? null"
+        :can-manage="rights.settings"
+      />
+
+      <OrgPeopleTable
+        ref="people"
+        :org="org"
+        :roles="roleNames"
+        :rights="rights"
+        @changed="refresh"
+        @invite="inviteOpen = true"
+      />
+
+      <OrgInviteDialog
+        v-if="rights.invite"
+        v-model:open="inviteOpen"
+        :organization-id="org.id"
+        :organization-name="org.name"
+        :roles="roleNames"
+        @invited="onInvited"
+      />
+    </template>
+  </div>
 </template>

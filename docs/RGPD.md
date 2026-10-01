@@ -8,12 +8,12 @@ Statut des mesures : ✅ en place
 
 ## 1. Responsable de traitement
 
-| | |
-|---|---|
-| Responsable de traitement | **À compléter** : raison sociale, adresse, SIREN |
-| Contact pour l'exercice des droits | **À compléter** : adresse email affichée dans la politique de confidentialité (par exemple `contact@…`) |
-| Délégué à la protection des données | **À compléter** : si un DPO est désigné |
-| Hébergement | France, chez LWS (base de données et service) |
+|                                     |                                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Responsable de traitement           | **À compléter** : raison sociale, adresse, SIREN                                                        |
+| Contact pour l'exercice des droits  | **À compléter** : adresse email affichée dans la politique de confidentialité (par exemple `contact@…`) |
+| Délégué à la protection des données | **À compléter** : si un DPO est désigné                                                                 |
+| Hébergement                         | France, chez LWS (base de données et service)                                                           |
 
 L'entreprise est **responsable de traitement** pour les comptes gérés par ce service : elle décide pourquoi et comment ils sont créés, utilisés et supprimés. Les organisations clientes invitent leurs membres, mais ne décident pas des moyens du traitement.
 
@@ -26,31 +26,31 @@ L'entreprise est **responsable de traitement** pour les comptes gérés par ce s
 
 ## 3. Finalités et bases légales
 
-| Finalité | Base légale (article 6 du RGPD) |
-|---|---|
-| Créer et gérer les comptes, permettre la connexion aux applications | Exécution du contrat avec l'organisation cliente et intérêt légitime à fournir un accès sécurisé à ses membres |
-| Gérer les organisations, les rôles, les invitations et les droits d'accès aux applications | Exécution du contrat |
-| Sécuriser les comptes : double authentification, alertes de nouvelle connexion, refus des mots de passe ayant fuité, limitation des tentatives | Intérêt légitime (sécurité du service et des comptes) |
-| Tracer les actions sensibles dans un journal d'audit (rôles, invitations, impersonation, suppressions, double authentification et passkeys) | Intérêt légitime (sécurité, preuve, prévention des abus) |
-| Assistance : impersonation par le support, réinitialisation de la 2FA | Intérêt légitime (assistance aux utilisateurs) |
-| Conserver une archive après suppression pour répondre aux réquisitions des autorités | Obligation légale |
+| Finalité                                                                                                                                       | Base légale (article 6 du RGPD)                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Créer et gérer les comptes, permettre la connexion aux applications                                                                            | Exécution du contrat avec l'organisation cliente et intérêt légitime à fournir un accès sécurisé à ses membres |
+| Gérer les organisations, les rôles, les invitations et les droits d'accès aux applications                                                     | Exécution du contrat                                                                                           |
+| Sécuriser les comptes : double authentification, alertes de nouvelle connexion, refus des mots de passe ayant fuité, limitation des tentatives | Intérêt légitime (sécurité du service et des comptes)                                                          |
+| Tracer les actions sensibles dans un journal d'audit (rôles, invitations, impersonation, suppressions, double authentification et passkeys)    | Intérêt légitime (sécurité, preuve, prévention des abus)                                                       |
+| Assistance : impersonation par le support, réinitialisation de la 2FA                                                                          | Intérêt légitime (assistance aux utilisateurs)                                                                 |
+| Conserver une archive après suppression pour répondre aux réquisitions des autorités                                                           | Obligation légale                                                                                              |
 
 Aucune donnée n'est utilisée à des fins publicitaires, revendue ou utilisée pour du profilage.
 
 ## 4. Données traitées
 
-| Catégorie | Données | Source |
-|---|---|---|
-| Identité | Nom, adresse email, statut de vérification de l'email | L'utilisateur, ou le fournisseur de connexion (Google, Microsoft, Authentik) |
-| Connexion | Empreinte du mot de passe (jamais le mot de passe), comptes liés (Google, Microsoft, Authentik) et leur identifiant chez ce fournisseur | L'utilisateur, le fournisseur |
-| Double authentification | Secret de l'application d'authentification et codes de secours (chiffrés), passkeys (nom, clé publique, type d'appareil) | L'utilisateur |
-| Sessions | Date, adresse IP, navigateur (user agent), expiration, organisation active | Le navigateur |
-| Appareils connus | Identifiant aléatoire d'appareil (stocké sous forme d'empreinte), navigateur, dates de première et dernière connexion | Le navigateur |
-| Organisations | Organisations dont la personne est membre, rôle, date d'arrivée | Le gérant ou l'équipe |
-| Invitations | Adresse email invitée, rôle, organisation, statut, dates, auteur de l'invitation | Le gérant ou l'équipe |
-| Applications autorisées | Application, permissions accordées, organisation concernée, dates, jetons d'accès et de renouvellement | Le service |
-| Journal d'audit | Auteur, action, cible, organisation, date, détails de l'action (par exemple l'email invité ou le rôle attribué) | Le service |
-| Limitation des tentatives | Adresse IP et route appelée, sur une fenêtre d'une minute | Le navigateur |
+| Catégorie                 | Données                                                                                                                                 | Source                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Identité                  | Nom, adresse email, statut de vérification de l'email                                                                                   | L'utilisateur, ou le fournisseur de connexion (Google, Microsoft, Authentik) |
+| Connexion                 | Empreinte du mot de passe (jamais le mot de passe), comptes liés (Google, Microsoft, Authentik) et leur identifiant chez ce fournisseur | L'utilisateur, le fournisseur                                                |
+| Double authentification   | Secret de l'application d'authentification et codes de secours (chiffrés), passkeys (nom, clé publique, type d'appareil)                | L'utilisateur                                                                |
+| Sessions                  | Date, adresse IP, navigateur (user agent), expiration, organisation active                                                              | Le navigateur                                                                |
+| Appareils connus          | Identifiant aléatoire d'appareil (stocké sous forme d'empreinte), navigateur, dates de première et dernière connexion                   | Le navigateur                                                                |
+| Organisations             | Organisations dont la personne est membre, rôle, date d'arrivée                                                                         | Le gérant ou l'équipe                                                        |
+| Invitations               | Adresse email invitée, rôle, organisation, statut, dates, auteur de l'invitation                                                        | Le gérant ou l'équipe                                                        |
+| Applications autorisées   | Application, permissions accordées, organisation concernée, dates, jetons d'accès et de renouvellement                                  | Le service                                                                   |
+| Journal d'audit           | Auteur, action, cible, organisation, date, détails de l'action (par exemple l'email invité ou le rôle attribué)                         | Le service                                                                   |
+| Limitation des tentatives | Adresse IP et route appelée, sur une fenêtre d'une minute                                                                               | Le navigateur                                                                |
 
 Le service ne traite **aucune donnée sensible** au sens de l'article 9 du RGPD.
 
@@ -64,30 +64,30 @@ Les données créées dans les applications (DATA_HUB, etc.) ne sont **pas** sto
 
 ## 6. Sous-traitants et transferts
 
-| Prestataire | Rôle | Localisation | Données concernées |
-|---|---|---|---|
-| LWS | Hébergement du service et de la base, envoi des emails | France | Toutes les données du service ; adresse email et contenu des emails envoyés |
-| Google | Connexion avec un compte Google, si la personne la choisit | États-Unis (cadre EU-US Data Privacy Framework) | Échange d'identité au moment de la connexion |
-| Microsoft | Connexion avec un compte professionnel Microsoft, si la personne la choisit | Union européenne et États-Unis (Data Privacy Framework) | Échange d'identité au moment de la connexion |
-| Have I Been Pwned | Vérification qu'un nouveau mot de passe n'a pas fuité | Hors UE | Aucune donnée personnelle : seuls les 5 premiers caractères de l'empreinte SHA-1 du mot de passe sont envoyés |
-| Authentik | Connexion de l'équipe interne | Auto-hébergé par l'entreprise | Comptes de l'équipe |
+| Prestataire       | Rôle                                                                        | Localisation                                            | Données concernées                                                                                            |
+| ----------------- | --------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| LWS               | Hébergement du service et de la base, envoi des emails                      | France                                                  | Toutes les données du service ; adresse email et contenu des emails envoyés                                   |
+| Google            | Connexion avec un compte Google, si la personne la choisit                  | États-Unis (cadre EU-US Data Privacy Framework)         | Échange d'identité au moment de la connexion                                                                  |
+| Microsoft         | Connexion avec un compte professionnel Microsoft, si la personne la choisit | Union européenne et États-Unis (Data Privacy Framework) | Échange d'identité au moment de la connexion                                                                  |
+| Have I Been Pwned | Vérification qu'un nouveau mot de passe n'a pas fuité                       | Hors UE                                                 | Aucune donnée personnelle : seuls les 5 premiers caractères de l'empreinte SHA-1 du mot de passe sont envoyés |
+| Authentik         | Connexion de l'équipe interne                                               | Auto-hébergé par l'entreprise                           | Comptes de l'équipe                                                                                           |
 
 **À compléter** : vérifier que les conditions de LWS contiennent les clauses de sous-traitance de l'article 28 du RGPD.
 
 ## 7. Durées de conservation
 
-| Donnée | Durée | Statut |
-|---|---|---|
-| Compte actif | Tant que le compte est utilisé | ✅ |
-| Compte inactif | Supprimé après **3 ans** sans connexion, après un email d'avertissement envoyé **30 jours** avant. Le seul gérant d'une organisation n'est pas supprimé : il est signalé à l'équipe | ✅ |
-| Session de connexion | 7 jours, 1 heure pour une session d'impersonation | ✅ |
-| Jetons des applications | 10 minutes pour le jeton d'accès, 30 jours pour le jeton de renouvellement | ✅ |
-| Appareil connu | Effacé après **13 mois** sans être revu | ✅ |
-| Invitation | 7 jours de validité, puis effacée | ✅ |
-| Liens envoyés par email (vérification, réinitialisation, lien de connexion, confirmation de suppression) | De 5 minutes à 24 heures selon le lien, puis inutilisables | ✅ |
-| Limitation des tentatives | Fenêtre d'une minute | ✅ |
-| Journal d'audit | **1 an**, puis effacé | ✅ |
-| Archive après suppression du compte | **1 an**, puis effacée (voir la section 9) | ✅ |
+| Donnée                                                                                                   | Durée                                                                                                                                                                               | Statut |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Compte actif                                                                                             | Tant que le compte est utilisé                                                                                                                                                      | ✅     |
+| Compte inactif                                                                                           | Supprimé après **3 ans** sans connexion, après un email d'avertissement envoyé **30 jours** avant. Le seul gérant d'une organisation n'est pas supprimé : il est signalé à l'équipe | ✅     |
+| Session de connexion                                                                                     | 7 jours, 1 heure pour une session d'impersonation                                                                                                                                   | ✅     |
+| Jetons des applications                                                                                  | 10 minutes pour le jeton d'accès, 30 jours pour le jeton de renouvellement                                                                                                          | ✅     |
+| Appareil connu                                                                                           | Effacé après **13 mois** sans être revu                                                                                                                                             | ✅     |
+| Invitation                                                                                               | 7 jours de validité, puis effacée                                                                                                                                                   | ✅     |
+| Liens envoyés par email (vérification, réinitialisation, lien de connexion, confirmation de suppression) | De 5 minutes à 24 heures selon le lien, puis inutilisables                                                                                                                          | ✅     |
+| Limitation des tentatives                                                                                | Fenêtre d'une minute                                                                                                                                                                | ✅     |
+| Journal d'audit                                                                                          | **1 an**, puis effacé                                                                                                                                                               | ✅     |
+| Archive après suppression du compte                                                                      | **1 an**, puis effacée (voir la section 9)                                                                                                                                          | ✅     |
 
 Une tâche automatique applique ces durées chaque jour ✅. Elle ne tourne que sur un serveur à la fois, même s'il y en a plusieurs, et peut être désactivée avec la variable `RETENTION_ENABLED=false`. Elle efface aussi les sessions expirées, les liens envoyés par email expirés et les compteurs de tentatives de plus d'un jour.
 
@@ -95,12 +95,12 @@ Une tâche automatique applique ces durées chaque jour ✅. Elle ne tourne que 
 
 Tous les cookies déposés sont **strictement nécessaires** au service ou à sa sécurité. Ils sont donc exemptés de consentement.
 
-| Cookie | Finalité | Durée |
-|---|---|---|
-| Session (`better-auth.session_token`) | Maintenir la connexion | 7 jours |
-| Appareil de confiance (2FA) | Ne pas redemander le code de double authentification sur cet appareil | 30 jours |
-| `auth_device` | Reconnaître le navigateur pour alerter d'une connexion depuis un nouvel appareil | 13 mois |
-| `better-auth.last_used_login_method` | Proposer en premier la dernière méthode de connexion utilisée | 30 jours |
+| Cookie                                | Finalité                                                                         | Durée    |
+| ------------------------------------- | -------------------------------------------------------------------------------- | -------- |
+| Session (`better-auth.session_token`) | Maintenir la connexion                                                           | 7 jours  |
+| Appareil de confiance (2FA)           | Ne pas redemander le code de double authentification sur cet appareil            | 30 jours |
+| `auth_device`                         | Reconnaître le navigateur pour alerter d'une connexion depuis un nouvel appareil | 13 mois  |
+| `better-auth.last_used_login_method`  | Proposer en premier la dernière méthode de connexion utilisée                    | 30 jours |
 
 Tous les cookies sont `httpOnly`, `SameSite=Lax` et `Secure` en HTTPS. Aucun cookie de mesure d'audience ou de publicité n'est utilisé.
 
@@ -140,12 +140,12 @@ Les entrées existantes gardent l'identifiant de la personne. Elles sont effacé
 
 ## 10. Droits des personnes
 
-| Droit | Mise en œuvre | Statut |
-|---|---|---|
-| Accès (article 15) et portabilité (article 20) | Sur demande au contact indiqué en section 1. Un administrateur génère un export JSON depuis la fiche utilisateur ; l'export est tracé et la personne est prévenue par email | ✅ |
-| Rectification (article 16) | La personne modifie son nom depuis sa page Profil. Pour l'email, sur demande | ✅ |
-| Effacement (article 17) | Depuis la page Profil, ou sur demande (section 9) | ✅ |
-| Opposition (article 21) et limitation (article 18) | Sur demande au contact indiqué en section 1, étudiée au cas par cas | Procédure manuelle |
+| Droit                                              | Mise en œuvre                                                                                                                                                               | Statut             |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Accès (article 15) et portabilité (article 20)     | Sur demande au contact indiqué en section 1. Un administrateur génère un export JSON depuis la fiche utilisateur ; l'export est tracé et la personne est prévenue par email | ✅                 |
+| Rectification (article 16)                         | La personne modifie son nom depuis sa page Profil. Pour l'email, sur demande                                                                                                | ✅                 |
+| Effacement (article 17)                            | Depuis la page Profil, ou sur demande (section 9)                                                                                                                           | ✅                 |
+| Opposition (article 21) et limitation (article 18) | Sur demande au contact indiqué en section 1, étudiée au cas par cas                                                                                                         | Procédure manuelle |
 
 **Délai de réponse** : 1 mois à compter de la demande, prolongeable de 2 mois pour une demande complexe, en prévenant la personne.
 

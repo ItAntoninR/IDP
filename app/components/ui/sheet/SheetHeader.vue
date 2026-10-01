@@ -6,7 +6,10 @@ const props = defineProps<{ class?: HTMLAttributes["class"] }>();
 </script>
 
 <template>
-  <div data-slot="sheet-header" :class="cn('flex flex-col gap-1.5 border-b p-6 pr-12', props.class)">
+  <div
+    data-slot="sheet-header"
+    :class="cn('flex flex-col gap-1.5 border-b p-6 pr-12', props.class)"
+  >
     <slot />
   </div>
 </template>

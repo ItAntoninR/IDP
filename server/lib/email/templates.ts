@@ -5,9 +5,7 @@ export interface EmailContent {
 }
 
 const escape = (s: string) =>
-  s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-  );
+  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 function layout(title: string, body: string, cta: { label: string; url: string } | null, footer: string) {
   const button = cta
@@ -16,6 +14,7 @@ function layout(title: string, body: string, cta: { label: string; url: string }
   const fallback = cta
     ? `<br>Si le bouton ne fonctionne pas, copiez ce lien :<br><span style="word-break:break-all">${escape(cta.url)}</span>`
     : "";
+
   return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>${escape(title)}</title></head>
 <body style="margin:0;background:#f4f4f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18181b">
@@ -78,6 +77,7 @@ export function invitationTemplate(params: {
 }): EmailContent {
   const org = escape(params.organizationName);
   const inviter = escape(params.inviterName);
+
   return {
     subject: `Invitation à rejoindre ${params.organizationName}`,
     html: layout(
@@ -111,6 +111,7 @@ const DELETION_REASONS = {
 
 export function accountDeletedTemplate(reason: keyof typeof DELETION_REASONS): EmailContent {
   const intro = `${DELETION_REASONS[reason]} Vos accès aux applications et vos informations personnelles ont été effacés. Votre identité et votre historique de connexion sont conservés 1 an dans une archive, uniquement pour répondre à une éventuelle demande des autorités, puis effacés.`;
+
   return {
     subject: "Votre compte a été supprimé",
     html: layout(
@@ -126,6 +127,7 @@ export function accountDeletedTemplate(reason: keyof typeof DELETION_REASONS): E
 export function inactivityWarningTemplate(url: string, deletionDate: Date): EmailContent {
   const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "Europe/Paris" }).format(deletionDate);
   const intro = `Vous ne vous êtes pas connecté à votre compte depuis bientôt 3 ans. Sans connexion de votre part, il sera supprimé le ${date}.`;
+
   return {
     subject: "Votre compte sera bientôt supprimé",
     html: layout(
@@ -154,6 +156,7 @@ export function securityAlertTemplate(params: {
   const body = `${escape(params.intro)}</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;margin:0 0 24px;border-top:1px solid #e4e4e7;border-bottom:1px solid #e4e4e7">${rows}</table>
         <p style="font-size:15px;line-height:1.6;margin:0 0 24px"><strong>Ce n'était pas vous ?</strong> Changez votre mot de passe et déconnectez les sessions que vous ne reconnaissez pas.`;
+
   return {
     subject: params.subject,
     html: layout(

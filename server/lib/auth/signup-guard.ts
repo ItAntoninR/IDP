@@ -13,6 +13,7 @@ export interface HookCtx {
 function isProviderCallback(ctx: HookCtx | null | undefined, providerId: string): boolean {
   if (!ctx?.path) return false;
   if (ctx.path === `/callback/${providerId}`) return true;
+
   return ctx.path.startsWith("/callback") && ctx.params?.id === providerId;
 }
 
@@ -30,10 +31,14 @@ export async function hasPendingInvitation(email: string): Promise<boolean> {
       ),
     )
     .limit(1);
+
   return rows.length > 0;
 }
 
-export async function assertSignupAllowed(user: { email: string; emailVerified?: boolean }, ctx: HookCtx | null | undefined) {
+export async function assertSignupAllowed(
+  user: { email: string; emailVerified?: boolean },
+  ctx: HookCtx | null | undefined,
+) {
   if (isSystemContext()) return;
   if (isAuthentikCallback(ctx)) return;
   if (isProviderCallback(ctx, "microsoft") && !user.emailVerified) {
@@ -42,6 +47,7 @@ export async function assertSignupAllowed(user: { email: string; emailVerified?:
       message: "Microsoft did not verify this email: accept the invitation first, then link Microsoft",
     });
   }
+
   if (await hasPendingInvitation(user.email)) return;
   throw new APIError("FORBIDDEN", {
     code: "SIGNUP_REQUIRES_INVITATION",

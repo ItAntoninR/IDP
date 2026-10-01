@@ -13,7 +13,9 @@ const tokenIdentifier = (token: string) => `account-deletion:${createHash("sha25
 
 export const accountDeletionUrl = (token: string) => {
   const url = new URL("/account/delete", env.AUTH_BASE_URL);
+
   url.searchParams.set("token", token);
+
   return url.toString();
 };
 
@@ -22,6 +24,7 @@ type Blocker = { code: "STAFF_ACCOUNT_MANAGED_IN_AUTHENTIK" } | { code: "SOLE_OW
 export async function deletionBlocker(user: { id: string; role?: string | null }): Promise<Blocker | null> {
   if (hasGlobalRole(user.role ?? null, "admin")) return { code: "STAFF_ACCOUNT_MANAGED_IN_AUTHENTIK" };
   const owned = await soleOwnedOrganizations(user.id);
+
   return owned.length ? { code: "SOLE_OWNER", organizations: owned.map((o) => o.name) } : null;
 }
 
@@ -29,12 +32,20 @@ type Failure<C extends string> = { ok: false; code: C; organizations?: string[] 
 type Result<C extends string> = { ok: true } | Failure<C>;
 
 const blocked = (blocker: Blocker): Failure<Blocker["code"]> =>
-  blocker.code === "SOLE_OWNER" ? { ok: false, code: blocker.code, organizations: blocker.organizations } : { ok: false, code: blocker.code };
+  blocker.code === "SOLE_OWNER"
+    ? { ok: false, code: blocker.code, organizations: blocker.organizations }
+    : { ok: false, code: blocker.code };
 
-export async function requestAccountDeletion(user: { id: string; email: string; role?: string | null }): Promise<Result<Blocker["code"]>> {
+export async function requestAccountDeletion(user: {
+  id: string;
+  email: string;
+  role?: string | null;
+}): Promise<Result<Blocker["code"]>> {
   const blocker = await deletionBlocker(user);
+
   if (blocker) return blocked(blocker);
   const token = randomBytes(32).toString("base64url");
+
   await db.insert(schema.verification).values({
     id: randomUUID(),
     identifier: tokenIdentifier(token),
@@ -42,6 +53,7 @@ export async function requestAccountDeletion(user: { id: string; email: string; 
     expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
   });
   sendEmailInBackground(user.email, deleteAccountTemplate(accountDeletionUrl(token)));
+
   return { ok: true };
 }
 
@@ -59,10 +71,13 @@ export async function confirmAccountDeletion(
       ),
     )
     .returning({ id: schema.verification.id });
+
   if (!verification) return { ok: false, code: "INVALID_TOKEN" };
   const blocker = await deletionBlocker(user);
+
   if (blocker) return blocked(blocker);
   await pseudonymizeUser(user.id, "self", { actorId: user.id });
+
   return { ok: true };
 }
 
@@ -76,9 +91,12 @@ export async function deleteUserAsAdmin(
     .from(schema.user)
     .where(and(eq(schema.user.id, userId), isNull(schema.user.deletedAt)))
     .limit(1);
+
   if (!user) return { ok: false, code: "USER_NOT_FOUND" };
   const blocker = await deletionBlocker(user);
+
   if (blocker) return blocked(blocker);
   await pseudonymizeUser(userId, "admin", actor);
+
   return { ok: true };
 }

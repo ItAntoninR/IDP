@@ -90,12 +90,18 @@ export function errorMessage(error: unknown): string {
   const e = error as AppError;
   const status = e.status ?? e.statusCode;
   const code = e.code ?? e.data?.code;
+
   if (status === 429) return MESSAGES.TOO_MANY_REQUESTS!;
   if (code && MESSAGES[code]) return MESSAGES[code]!;
-  const normalized = e.message?.toUpperCase().replace(/[^A-Z]+/g, "_").replace(/^_|_$/g, "");
+  const normalized = e.message
+    ?.toUpperCase()
+    .replace(/[^A-Z]+/g, "_")
+    .replace(/^_|_$/g, "");
+
   if (normalized && MESSAGES[normalized]) return MESSAGES[normalized]!;
   if (status === 401) return MESSAGES.UNAUTHORIZED!;
   if (status === 403) return MESSAGES.FORBIDDEN!;
+
   return "Une erreur est survenue. Réessayez dans un instant.";
 }
 
@@ -118,5 +124,6 @@ const URL_ERRORS: Record<string, string> = {
 
 export function urlErrorMessage(code: unknown) {
   const value = Array.isArray(code) ? code.at(-1) : code;
+
   return typeof value === "string" && value ? (URL_ERRORS[value] ?? "La connexion a échoué. Réessayez.") : "";
 }

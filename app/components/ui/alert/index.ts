@@ -2,7 +2,9 @@ import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
 
 export { default as Alert } from "./Alert.vue";
+
 export { default as AlertDescription } from "./AlertDescription.vue";
+
 export { default as AlertTitle } from "./AlertTitle.vue";
 
 export const alertVariants = cva(
@@ -11,8 +13,10 @@ export const alertVariants = cva(
     variants: {
       variant: {
         default: "bg-card text-card-foreground",
-        destructive: "text-destructive bg-red-50 border-red-200 [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
-        success: "text-emerald-800 bg-emerald-50 border-emerald-200 *:data-[slot=alert-description]:text-emerald-800/90",
+        destructive:
+          "text-destructive bg-red-50 border-red-200 [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+        success:
+          "text-emerald-800 bg-emerald-50 border-emerald-200 *:data-[slot=alert-description]:text-emerald-800/90",
         info: "text-sky-800 bg-sky-50 border-sky-200 *:data-[slot=alert-description]:text-sky-800/90",
       },
     },

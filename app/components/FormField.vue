@@ -23,6 +23,7 @@ const id = useId();
 <template>
   <div class="grid gap-2">
     <Label :for="id">{{ label }}</Label>
+
     <Input
       :id="id"
       v-model="model"
@@ -35,6 +36,12 @@ const id = useId();
       :pattern="pattern"
       :placeholder="placeholder"
     />
-    <p v-if="hint" class="text-muted-foreground text-xs">{{ hint }}</p>
+
+    <p
+      v-if="hint"
+      class="text-muted-foreground text-xs"
+    >
+      {{ hint }}
+    </p>
   </div>
 </template>

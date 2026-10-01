@@ -22,6 +22,7 @@ async function decide(accept: boolean) {
     method: "POST",
     body: { accept, oauth_query: window.location.search.slice(1) },
   });
+
   loading.value = false;
   if (res.error) return (error.value = errorMessage(res.error));
   if (res.data?.url && !res.data.redirect) window.location.href = res.data.url;
@@ -29,14 +30,36 @@ async function decide(accept: boolean) {
 </script>
 
 <template>
-  <AuthCard title="Autoriser l'accès" description="Une application demande à accéder à votre compte.">
+  <AuthCard
+    title="Autoriser l'accès"
+    description="Une application demande à accéder à votre compte."
+  >
     <FormAlert :message="error" />
+
     <ul class="list-inside list-disc text-sm">
-      <li v-for="s in scopes" :key="s">{{ labels[s] ?? s }}</li>
+      <li
+        v-for="s in scopes"
+        :key="s"
+      >
+        {{ labels[s] ?? s }}
+      </li>
     </ul>
+
     <div class="grid gap-2 sm:grid-cols-2">
-      <Button :disabled="loading" @click="decide(true)">Autoriser</Button>
-      <Button variant="outline" :disabled="loading" @click="decide(false)">Refuser</Button>
+      <Button
+        :disabled="loading"
+        @click="decide(true)"
+      >
+        Autoriser
+      </Button>
+
+      <Button
+        variant="outline"
+        :disabled="loading"
+        @click="decide(false)"
+      >
+        Refuser
+      </Button>
     </div>
   </AuthCard>
 </template>

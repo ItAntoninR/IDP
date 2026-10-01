@@ -17,8 +17,12 @@ const protectedUser = sql<boolean>`(coalesce(${schema.user.twoFactorEnabled}, fa
 
 function memberWhere(organizationId: string, query: Pick<PeopleQuery, "q" | "filter">) {
   const filters: SQL[] = [eq(schema.member.organizationId, organizationId)];
+
   if (query.filter === "no2fa") filters.push(not(protectedUser));
-  if (query.q) filters.push(or(ilike(schema.user.name, likePattern(query.q)), ilike(schema.user.email, likePattern(query.q)))!);
+  if (query.q) {
+    filters.push(or(ilike(schema.user.name, likePattern(query.q)), ilike(schema.user.email, likePattern(query.q)))!);
+  }
+
   return and(...filters);
 }
 
@@ -28,7 +32,9 @@ function invitationWhere(organizationId: string, q: string) {
     eq(schema.invitation.status, "pending"),
     gt(schema.invitation.expiresAt, new Date()),
   ];
+
   if (q) filters.push(ilike(schema.invitation.email, likePattern(q)));
+
   return and(...filters);
 }
 

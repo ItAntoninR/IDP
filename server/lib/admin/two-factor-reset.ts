@@ -7,14 +7,21 @@ import { sendSecurityAlert } from "../auth/security-alerts";
 
 export async function resetTwoFactor(userId: string, actor: Omit<Actor, "name">) {
   const [user] = await db
-    .select({ id: schema.user.id, email: schema.user.email, role: schema.user.role, totp: schema.user.twoFactorEnabled })
+    .select({
+      id: schema.user.id,
+      email: schema.user.email,
+      role: schema.user.role,
+      totp: schema.user.twoFactorEnabled,
+    })
     .from(schema.user)
     .where(eq(schema.user.id, userId))
     .limit(1);
+
   if (!user) return { status: "not_found" as const };
   if (hasGlobalRole(user.role, "admin")) return { status: "staff" as const };
 
   const [passkeys] = await db.select({ n: count() }).from(schema.passkey).where(eq(schema.passkey.userId, userId));
+
   await db.transaction(async (tx) => {
     await tx.delete(schema.twoFactor).where(eq(schema.twoFactor.userId, userId));
     await tx.delete(schema.passkey).where(eq(schema.passkey.userId, userId));
@@ -36,5 +43,6 @@ export async function resetTwoFactor(userId: string, actor: Omit<Actor, "name">)
     targetId: userId,
     metadata: { totp: user.totp === true, passkeys: passkeys?.n ?? 0 },
   });
+
   return { status: "reset" as const };
 }

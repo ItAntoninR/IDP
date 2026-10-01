@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-const bool = z
-  .enum(["true", "false", "1", "0"])
-  .transform((v) => v === "true" || v === "1");
+const bool = z.enum(["true", "false", "1", "0"]).transform((v) => v === "true" || v === "1");
 
 const url = z.url().transform((v) => v.replace(/\/+$/, ""));
 
@@ -56,17 +54,16 @@ const EnvSchema = z.object({
 export type Env = z.infer<typeof EnvSchema>;
 
 function loadEnv(): Env {
-  const raw = Object.fromEntries(
-    Object.entries(process.env).filter(([, v]) => v !== undefined && v !== ""),
-  );
+  const raw = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== undefined && v !== ""));
   const parsed = EnvSchema.safeParse(raw);
+
   if (!parsed.success) {
-    const details = parsed.error.issues
-      .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
-      .join("\n");
+    const details = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
+
     console.error(`Invalid configuration:\n${details}`);
     throw new Error("Invalid environment configuration");
   }
+
   return parsed.data;
 }
 

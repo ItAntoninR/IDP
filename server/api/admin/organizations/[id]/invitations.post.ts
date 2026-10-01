@@ -13,10 +13,14 @@ export default defineEventHandler(async (event) => {
     ...actorOf(session),
     name: session.user.name || session.user.email,
   });
+
   if (!result.ok) {
     const [status, message] = FAILURES[result.code];
+
     throw apiError(status, result.code, message);
   }
+
   setResponseStatus(event, 201);
+
   return { invitationId: result.invitationId };
 });

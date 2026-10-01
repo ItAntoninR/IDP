@@ -8,22 +8,27 @@ let server: ChildProcess | undefined;
 
 async function waitForHealth(timeoutMs: number) {
   const deadline = Date.now() + timeoutMs;
+
   while (Date.now() < deadline) {
     try {
       if ((await fetch(`${TEST_BASE_URL}/healthz`)).ok) return;
     } catch {}
+
     await new Promise((r) => setTimeout(r, 250));
   }
+
   throw new Error("Test server did not start");
 }
 
 export async function setup() {
   const pool = new pg.Pool({ connectionString: TEST_ENV.DATABASE_URL });
+
   await migrate(drizzle(pool), { migrationsFolder: "server/lib/db/migrations" });
   await pool.end();
 
   if (process.env.SKIP_BUILD !== "1") {
     const build = spawnSync("pnpm", ["exec", "nuxt", "build"], { stdio: "inherit", shell: true });
+
     if (build.status !== 0) throw new Error("nuxt build failed");
   }
 

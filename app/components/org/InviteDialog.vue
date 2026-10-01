@@ -26,6 +26,7 @@ async function submit() {
     role: role.value as "member",
     organizationId: props.organizationId,
   });
+
   loading.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
   toast.success(`Invitation envoyée à ${email.value}.`);
@@ -39,17 +40,49 @@ async function submit() {
     <DialogContent class="max-w-md">
       <DialogHeader>
         <DialogTitle>Inviter un membre</DialogTitle>
-        <DialogDescription>La personne recevra un email pour rejoindre {{ organizationName }}. L'invitation est valable 7 jours.</DialogDescription>
+
+        <DialogDescription>
+          La personne recevra un email pour rejoindre {{ organizationName }}. L'invitation est valable 7 jours.
+        </DialogDescription>
       </DialogHeader>
-      <form class="space-y-5" @submit.prevent="submit">
-        <FormField v-model="email" label="Email" type="email" placeholder="nom@entreprise.fr" required />
+
+      <form
+        class="space-y-5"
+        @submit.prevent="submit"
+      >
+        <FormField
+          v-model="email"
+          label="Email"
+          type="email"
+          placeholder="nom@entreprise.fr"
+          required
+        />
+
         <div class="grid gap-2">
           <Label for="invite-role">Rôle</Label>
-          <AppSelect id="invite-role" v-model="role" :options="roleOptions(roles)" />
+
+          <AppSelect
+            id="invite-role"
+            v-model="role"
+            :options="roleOptions(roles)"
+          />
         </div>
+
         <DialogFooter>
-          <Button type="button" variant="outline" @click="open = false">Annuler</Button>
-          <Button type="submit" :disabled="loading">Envoyer l'invitation</Button>
+          <Button
+            type="button"
+            variant="outline"
+            @click="open = false"
+          >
+            Annuler
+          </Button>
+
+          <Button
+            type="submit"
+            :disabled="loading"
+          >
+            Envoyer l'invitation
+          </Button>
         </DialogFooter>
       </form>
     </DialogContent>

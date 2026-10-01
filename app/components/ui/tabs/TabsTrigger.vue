@@ -11,7 +11,16 @@ const forwarded = useForwardProps(delegatedProps);
 </script>
 
 <template>
-  <TabsTrigger data-slot="tabs-trigger" v-bind="forwarded" :class="cn('data-[state=active]:bg-background focus-visible:border-ring focus-visible:ring-ring/50 text-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow-sm cursor-pointer', props.class)">
+  <TabsTrigger
+    data-slot="tabs-trigger"
+    v-bind="forwarded"
+    :class="
+      cn(
+        'data-[state=active]:bg-background focus-visible:border-ring focus-visible:ring-ring/50 text-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow-sm cursor-pointer',
+        props.class,
+      )
+    "
+  >
     <slot />
   </TabsTrigger>
 </template>

@@ -11,7 +11,11 @@ const forwarded = useForwardProps(delegatedProps);
 </script>
 
 <template>
-  <DialogClose data-slot="dialog-close" v-bind="forwarded" :class="cn('', props.class)">
+  <DialogClose
+    data-slot="dialog-close"
+    v-bind="forwarded"
+    :class="cn('', props.class)"
+  >
     <slot />
   </DialogClose>
 </template>

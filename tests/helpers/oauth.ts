@@ -10,10 +10,8 @@ export const ISSUER = `${process.env.AUTH_BASE_URL}/api/auth`;
 
 export async function seedTestClients(): Promise<Record<AppId, SeededClient & { clientSecret: string }>> {
   const clients = await seedClients({ rotateSecrets: true });
-  return Object.fromEntries(clients.map((c) => [c.appId, c])) as Record<
-    AppId,
-    SeededClient & { clientSecret: string }
-  >;
+
+  return Object.fromEntries(clients.map((c) => [c.appId, c])) as Record<AppId, SeededClient & { clientSecret: string }>;
 }
 
 const b64url = (buf: Buffer) => buf.toString("base64url");
@@ -41,13 +39,16 @@ export async function authorize(
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
+
   if (opts.prompt) params.set("prompt", opts.prompt);
   const resources = opts.resource === undefined ? [client.resource] : [opts.resource].flat();
+
   for (const r of resources) params.append("resource", r);
 
   const res = await user.get(`/api/auth/oauth2/authorize?${params}`);
   const location: string = res.headers.location ?? res.body?.url ?? "";
-  const code = location.startsWith(redirectUri) ? new URL(location).searchParams.get("code") ?? undefined : undefined;
+  const code = location.startsWith(redirectUri) ? (new URL(location).searchParams.get("code") ?? undefined) : undefined;
+
   return { status: res.status, location, code, verifier, redirectUri };
 }
 
@@ -70,13 +71,16 @@ export async function exchangeCode(
 
 export async function getAccessToken(user: Agent, client: SeededClient & { clientSecret: string }) {
   const auth = await authorize(user, client);
+
   expect(auth.code, `authorize did not return a code: ${auth.status} ${auth.location}`).toBeDefined();
   const res = await exchangeCode(client, { code: auth.code!, verifier: auth.verifier, redirectUri: auth.redirectUri });
+
   return res;
 }
 
 export async function verifyJwt(token: string, audience: string): Promise<JWTPayload> {
   const jwks = (await agent().get("/api/auth/jwks").expect(200)).body;
   const { payload } = await jwtVerify(token, createLocalJWKSet(jwks), { issuer: ISSUER, audience });
+
   return payload;
 }

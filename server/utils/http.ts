@@ -15,18 +15,23 @@ export async function getAuthSession(event: H3Event): Promise<AuthSession | null
 
 export async function requireSession(event: H3Event): Promise<AuthSession> {
   const session = await getAuthSession(event);
+
   if (!session) throw apiError(401, "UNAUTHORIZED", "Authentication required");
+
   return session;
 }
 
 export async function requireAdmin(event: H3Event): Promise<AuthSession> {
   const session = await requireSession(event);
+
   if (!hasGlobalRole(session.user.role, "admin")) throw apiError(403, "FORBIDDEN", "Admin role required");
+
   return session;
 }
 
 function validate<S extends z.ZodType>(schema: S, value: unknown): z.infer<S> {
   const parsed = schema.safeParse(value);
+
   if (!parsed.success) {
     throw apiError(
       400,
@@ -35,6 +40,7 @@ function validate<S extends z.ZodType>(schema: S, value: unknown): z.infer<S> {
       parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
     );
   }
+
   return parsed.data;
 }
 

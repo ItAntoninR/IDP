@@ -19,20 +19,24 @@ async function ensureUser(email: string, name: string, role?: string) {
   const userId =
     existing?.id ??
     (await runAsSystem(() => auth.api.signUpEmail({ body: { email, password: PASSWORD, name } }))).user.id;
+
   await db
     .update(schema.user)
     .set({ emailVerified: true, ...(role ? { role } : {}) })
     .where(eq(schema.user.id, userId));
+
   return userId;
 }
 
 async function ensureOrg(slug: string, name: string, apps: string[]) {
   const [existing] = await db.select().from(schema.organization).where(eq(schema.organization.slug, slug));
+
   if (existing) return existing.id;
   const [org] = await db
     .insert(schema.organization)
     .values({ id: id("organization"), slug, name, apps, createdAt: new Date() })
     .returning();
+
   return org!.id;
 }
 
@@ -41,6 +45,7 @@ async function ensureMember(organizationId: string, userId: string, role: string
     .select()
     .from(schema.member)
     .where(and(eq(schema.member.organizationId, organizationId), eq(schema.member.userId, userId)));
+
   if (!existing) {
     await db.insert(schema.member).values({ id: id("member"), organizationId, userId, role, createdAt: new Date() });
   }
@@ -51,6 +56,7 @@ async function ensureRole(organizationId: string, role: string, permission: Reco
     .select()
     .from(schema.organizationRole)
     .where(and(eq(schema.organizationRole.organizationId, organizationId), eq(schema.organizationRole.role, role)));
+
   if (!existing) {
     await db.insert(schema.organizationRole).values({
       id: id("organizationRole"),
@@ -66,9 +72,17 @@ async function ensureInvitation(organizationId: string, email: string, role: str
   const [existing] = await db
     .select()
     .from(schema.invitation)
-    .where(and(eq(schema.invitation.organizationId, organizationId), eq(schema.invitation.email, email), eq(schema.invitation.status, "pending")));
+    .where(
+      and(
+        eq(schema.invitation.organizationId, organizationId),
+        eq(schema.invitation.email, email),
+        eq(schema.invitation.status, "pending"),
+      ),
+    );
+
   if (existing) return existing.id;
   const invitationId = id("invitation");
+
   await db.insert(schema.invitation).values({
     id: invitationId,
     organizationId,
@@ -79,6 +93,7 @@ async function ensureInvitation(organizationId: string, email: string, role: str
     expiresAt: new Date(Date.now() + INVITATION_TTL_SECONDS * 1000),
     createdAt: new Date(),
   });
+
   return invitationId;
 }
 

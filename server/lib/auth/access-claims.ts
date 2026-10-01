@@ -6,9 +6,13 @@ import { appByResource } from "../apps";
 import { APP_PERMISSIONS, roles as staticRoles, type AppId } from "../../../shared/permissions";
 
 export const ACCESS_CLAIM = `${env.CLAIMS_NAMESPACE}/access`;
+
 export const IMPERSONATED_BY_CLAIM = `${env.CLAIMS_NAMESPACE}/impersonated_by`;
+
 export const ORGANIZATION_CLAIM = `${env.CLAIMS_NAMESPACE}/org_id`;
+
 export const ORGANIZATION_NAME_CLAIM = `${env.CLAIMS_NAMESPACE}/org_name`;
+
 export const ORGANIZATION_COUNT_CLAIM = `${env.CLAIMS_NAMESPACE}/org_count`;
 
 export type AccessMap = Record<string, string[]>;
@@ -31,6 +35,7 @@ export async function effectiveAppAccess(userId: string, appId: AppId): Promise<
     .where(eq(schema.member.userId, userId));
 
   const eligible = memberships.filter((m) => (m.apps ?? []).includes(appId));
+
   if (!eligible.length) return {};
 
   const dynamicRoles = await db
@@ -55,24 +60,32 @@ export async function effectiveAppAccess(userId: string, appId: AppId): Promise<
 
   const catalogue = new Set<string>(APP_PERMISSIONS[appId]);
   const access: AccessMap = {};
+
   for (const m of eligible) {
     const granted = new Set<string>();
+
     for (const role of parseRoles(m.role)) {
       const fixed = staticRoles[role as keyof typeof staticRoles];
+
       for (const action of (fixed?.statements as Record<string, readonly string[]> | undefined)?.[appId] ?? []) {
         granted.add(action);
       }
+
       for (const d of dynamicRoles) {
         if (d.organizationId !== m.organizationId || d.role !== role) continue;
         const perms = JSON.parse(d.permission) as Record<string, string[]>;
+
         for (const action of perms[appId] ?? []) granted.add(action);
       }
     }
+
     const actions = new Set([...granted].filter((a) => catalogue.has(a)));
+
     if (actions.has("access")) {
       access[m.organizationId] = APP_PERMISSIONS[appId].filter((a) => actions.has(a));
     }
   }
+
   return access;
 }
 
@@ -85,43 +98,57 @@ export async function buildAccessTokenClaims(info: {
   if (info.user.banned === true) {
     throw new APIError("FORBIDDEN", { error: "access_denied", error_description: "User is banned" });
   }
+
   const apps = (info.resources ?? []).map(appByResource);
+
   if (apps.length !== 1 || !apps[0]) {
     throw new APIError("BAD_REQUEST", {
       error: "invalid_target",
       error_description: "Exactly one known resource must be requested",
     });
   }
+
   const access = await effectiveAppAccess(info.user.id, apps[0].id);
+
   if (!Object.keys(access).length) {
     throw new APIError("FORBIDDEN", {
       error: "access_denied",
       error_description: "No organization grants access to this application",
     });
   }
+
   const granting = Object.keys(access);
   const organizationId = info.referenceId ?? (granting.length === 1 ? granting[0] : undefined);
+
   if (!organizationId) {
     throw new APIError("FORBIDDEN", {
       error: "access_denied",
       error_description: "An organization must be selected",
     });
   }
+
   const permissions = access[organizationId];
+
   if (!permissions) {
     throw new APIError("FORBIDDEN", {
       error: "access_denied",
       error_description: "The selected organization does not grant access to this application",
     });
   }
+
   const [[user], [organization]] = await Promise.all([
-    db.select({ name: schema.user.name, email: schema.user.email }).from(schema.user).where(eq(schema.user.id, info.user.id)).limit(1),
+    db
+      .select({ name: schema.user.name, email: schema.user.email })
+      .from(schema.user)
+      .where(eq(schema.user.id, info.user.id))
+      .limit(1),
     db
       .select({ name: schema.organization.name })
       .from(schema.organization)
       .where(eq(schema.organization.id, organizationId))
       .limit(1),
   ]);
+
   return {
     [ACCESS_CLAIM]: { [organizationId]: permissions },
     [ORGANIZATION_CLAIM]: organizationId,

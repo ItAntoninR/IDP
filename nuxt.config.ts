@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   ssr: false,
   spaLoadingTemplate: true,
   devtools: { enabled: false },
-  modules: ["shadcn-nuxt"],
+  modules: ["@nuxt/eslint", "shadcn-nuxt"],
   shadcn: {
     prefix: "",
     componentDir: "./app/components/ui",

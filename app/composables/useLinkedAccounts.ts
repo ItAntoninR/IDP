@@ -7,9 +7,11 @@ export function useLinkedAccounts() {
 
   async function load() {
     const res = await authClient.listAccounts();
+
     accounts.value = (res.data ?? []) as unknown as LinkedAccount[];
   }
 
   onMounted(load);
+
   return { accounts, hasPassword, load };
 }

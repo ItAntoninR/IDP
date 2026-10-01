@@ -35,7 +35,10 @@ export const deletedAccountArchive = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     connections: jsonb("connections").$type<Record<string, unknown>>().default({}).notNull(),
   },
-  (t) => [index("deleted_account_archive_email_idx").on(t.email), index("deleted_account_archive_expires_idx").on(t.expiresAt)],
+  (t) => [
+    index("deleted_account_archive_email_idx").on(t.email),
+    index("deleted_account_archive_expires_idx").on(t.expiresAt),
+  ],
 );
 
 export const knownDevice = pgTable(

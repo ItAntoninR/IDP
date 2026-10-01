@@ -13,11 +13,33 @@ onMounted(load);
 </script>
 
 <template>
-  <FormAlert v-if="error" :message="error" />
-  <PageLoader v-else-if="!org || !rights" />
-  <template v-else>
-    <PageHeader title="Paramètres" :description="`Réglages de ${org.name}.`" />
-    <OrgProfileCard :org="org" :app-labels="appLabels" :editable="rights.settings" @changed="onProfileChanged" />
-    <OrgSecurityCard v-if="rights.settings" :org="org" :stats="insights?.stats ?? null" @changed="refresh" />
-  </template>
+  <div class="space-y-6">
+    <FormAlert
+      v-if="error"
+      :message="error"
+    />
+
+    <PageLoader v-else-if="!org || !rights" />
+
+    <template v-else>
+      <PageHeader
+        title="Paramètres"
+        :description="`Réglages de ${org.name}.`"
+      />
+
+      <OrgProfileCard
+        :org="org"
+        :app-labels="appLabels"
+        :editable="rights.settings"
+        @changed="onProfileChanged"
+      />
+
+      <OrgSecurityCard
+        v-if="rights.settings"
+        :org="org"
+        :stats="insights?.stats ?? null"
+        @changed="refresh"
+      />
+    </template>
+  </div>
 </template>

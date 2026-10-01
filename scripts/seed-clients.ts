@@ -12,5 +12,6 @@ for (const c of clients) {
     `  client_secret ${c.clientSecret ?? "(unchanged — run `pnpm seed:clients --rotate-secrets` to issue a new one)"}`,
   );
 }
+
 console.log("\nStore the secrets now: they are hashed at rest and cannot be displayed again.");
 await pool.end();

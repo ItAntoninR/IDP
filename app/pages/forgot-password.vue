@@ -15,6 +15,7 @@ async function submit() {
   error.value = "";
   loading.value = true;
   const res = await authClient.requestPasswordReset({ email: email.value, redirectTo: "/reset-password" });
+
   loading.value = false;
   if (res.error) return (error.value = errorMessage(res.error));
   sent.value = true;
@@ -22,13 +23,45 @@ async function submit() {
 </script>
 
 <template>
-  <AuthCard title="Mot de passe oublié" description="Nous vous envoyons un lien pour en choisir un nouveau.">
-    <FormAlert v-if="sent" tone="success" :message="`Si un compte correspond à ${email}, un email de réinitialisation vient d'être envoyé.`" />
-    <form v-else class="space-y-4" @submit.prevent="submit">
+  <AuthCard
+    title="Mot de passe oublié"
+    description="Nous vous envoyons un lien pour en choisir un nouveau."
+  >
+    <FormAlert
+      v-if="sent"
+      tone="success"
+      :message="`Si un compte correspond à ${email}, un email de réinitialisation vient d'être envoyé.`"
+    />
+
+    <form
+      v-else
+      class="space-y-4"
+      @submit.prevent="submit"
+    >
       <FormAlert :message="error" />
-      <FormField v-model="email" label="Email" type="email" autocomplete="email" required />
-      <Button type="submit" class="w-full" :disabled="loading">Envoyer le lien</Button>
+
+      <FormField
+        v-model="email"
+        label="Email"
+        type="email"
+        autocomplete="email"
+        required
+      />
+
+      <Button
+        type="submit"
+        class="w-full"
+        :disabled="loading"
+      >
+        Envoyer le lien
+      </Button>
     </form>
-    <NuxtLink to="/sign-in" class="text-muted-foreground block text-center text-sm hover:underline">Retour à la connexion</NuxtLink>
+
+    <NuxtLink
+      to="/sign-in"
+      class="text-muted-foreground block text-center text-sm hover:underline"
+    >
+      Retour à la connexion
+    </NuxtLink>
   </AuthCard>
 </template>

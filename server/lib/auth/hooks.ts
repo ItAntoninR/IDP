@@ -15,6 +15,7 @@ export const beforeHook = createAuthMiddleware(async (ctx) => {
   await enforceRoleCeiling(ctx);
   await refuseMagicLinkWithTwoFactor(ctx);
   requirePasskeyUserVerification(ctx);
+
   return stripOfflineAccessWhenImpersonating(ctx);
 });
 

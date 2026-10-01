@@ -49,6 +49,7 @@ export async function transferOwnership(
       .where(and(eq(schema.member.organizationId, organizationId), eq(schema.member.userId, actor.actorId)))
       .for("update")
       .limit(1);
+
     if (!from || !isOwnerRole(from.role)) return { ok: false, code: "NOT_AN_OWNER" };
 
     const [to] = await tx
@@ -57,15 +58,18 @@ export async function transferOwnership(
       .where(and(eq(schema.member.organizationId, organizationId), eq(schema.member.id, memberId)))
       .for("update")
       .limit(1);
+
     if (!to || to.id === from.id) return { ok: false, code: "MEMBER_NOT_FOUND" };
     if (isOwnerRole(to.role)) return { ok: false, code: "ALREADY_OWNER" };
 
     const remaining = roleList(from.role).filter((r) => r !== OWNER);
+
     await tx.update(schema.member).set({ role: OWNER }).where(eq(schema.member.id, to.id));
     await tx
       .update(schema.member)
       .set({ role: remaining.length ? remaining.join(",") : "member" })
       .where(eq(schema.member.id, from.id));
+
     return { ok: true, toUserId: to.userId };
   });
 
@@ -79,5 +83,6 @@ export async function transferOwnership(
       metadata: { toUserId: result.toUserId },
     });
   }
+
   return result.ok ? { ok: true } : result;
 }

@@ -36,7 +36,10 @@ const selected = computed(() => props.options.find((o) => o.value === model.valu
 </script>
 
 <template>
-  <SelectRoot v-model="model" :disabled="disabled">
+  <SelectRoot
+    v-model="model"
+    :disabled="disabled"
+  >
     <SelectTrigger
       :id="id"
       :class="
@@ -47,13 +50,20 @@ const selected = computed(() => props.options.find((o) => o.value === model.valu
       "
       v-bind="$attrs"
     >
-      <SelectValue :placeholder="placeholder" class="truncate data-[placeholder]:text-muted-foreground">
+      <SelectValue
+        :placeholder="placeholder"
+        class="truncate data-[placeholder]:text-muted-foreground"
+      >
         {{ selected?.label ?? placeholder }}
       </SelectValue>
+
       <SelectIcon as-child>
-        <ChevronDown class="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+        <ChevronDown
+          class="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180"
+        />
       </SelectIcon>
     </SelectTrigger>
+
     <SelectPortal>
       <SelectContent
         position="popper"
@@ -69,8 +79,15 @@ const selected = computed(() => props.options.find((o) => o.value === model.valu
           >
             <span class="flex min-w-0 flex-col">
               <SelectItemText class="truncate">{{ option.label }}</SelectItemText>
-              <span v-if="option.description" class="text-muted-foreground text-xs">{{ option.description }}</span>
+
+              <span
+                v-if="option.description"
+                class="text-muted-foreground text-xs"
+              >
+                {{ option.description }}
+              </span>
             </span>
+
             <SelectItemIndicator class="absolute top-2.5 right-2.5">
               <Check class="size-4" />
             </SelectItemIndicator>

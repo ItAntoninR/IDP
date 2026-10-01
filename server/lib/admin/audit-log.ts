@@ -16,6 +16,7 @@ export const auditQuerySchema = z.object({
 
 export async function queryAuditLog(q: z.infer<typeof auditQuerySchema>) {
   const filters: SQL[] = [];
+
   if (q.action) filters.push(eq(schema.auditLog.action, q.action));
   if (q.actorId) filters.push(eq(schema.auditLog.actorId, q.actorId));
   if (q.targetId) filters.push(eq(schema.auditLog.targetId, q.targetId));

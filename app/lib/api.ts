@@ -22,6 +22,7 @@ export interface MyOrganization {
 }
 
 let configPromise: Promise<PublicConfig> | undefined;
+
 export const getPublicConfig = () => (configPromise ??= $fetch<PublicConfig>("/api/public/config"));
 
 export const getMyOrganizations = () =>

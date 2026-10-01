@@ -7,6 +7,8 @@ export default defineEventHandler(async (event) => {
     ...actorOf(session),
     name: session.user.name || session.user.email,
   });
+
   if (!organization) throw apiError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+
   return { organization };
 });

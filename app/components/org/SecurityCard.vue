@@ -18,6 +18,7 @@ const coverage = computed(() =>
 async function save(value: boolean) {
   saving.value = true;
   const res = await authClient.organization.update({ organizationId: props.org.id, data: { requireTwoFactor: value } });
+
   saving.value = false;
   confirmOpen.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
@@ -33,42 +34,68 @@ function toggle(value: boolean) {
 </script>
 
 <template>
-  <Card>
-    <CardHeader>
-      <CardTitle>Sécurité</CardTitle>
-      <CardDescription>Règles de connexion appliquées à tous les membres de l'organisation.</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div class="flex items-center justify-between gap-6 rounded-lg border px-4 py-3">
-        <div>
-          <p class="text-sm font-medium">Exiger la double authentification</p>
-          <p class="text-muted-foreground text-xs">
-            Chaque membre devra activer une application d'authentification pour accéder à vos applications.
+  <div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Sécurité</CardTitle>
+
+        <CardDescription>Règles de connexion appliquées à tous les membres de l'organisation.</CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <div class="flex items-center justify-between gap-6 rounded-lg border px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">Exiger la double authentification</p>
+
+            <p class="text-muted-foreground text-xs">
+              Chaque membre devra activer une application d'authentification pour accéder à vos applications.
+            </p>
+          </div>
+
+          <Switch
+            :model-value="required"
+            :disabled="saving"
+            aria-label="Exiger la double authentification"
+            @update:model-value="toggle"
+          />
+        </div>
+
+        <div
+          v-if="stats"
+          class="mt-4 space-y-2 rounded-lg border px-4 py-3"
+        >
+          <div class="flex items-center justify-between text-sm">
+            <span class="font-medium">Membres protégés</span>
+
+            <span class="text-muted-foreground tabular-nums">
+              {{ stats.twoFactorEnabled }} sur {{ stats.members }} · {{ coverage }} %
+            </span>
+          </div>
+
+          <div class="bg-muted h-2 overflow-hidden rounded-full">
+            <div
+              class="h-full rounded-full bg-emerald-500 transition-all"
+              :style="{ width: `${coverage}%` }"
+            />
+          </div>
+
+          <p
+            v-if="required && stats.twoFactorEnabled < stats.members"
+            class="text-xs text-amber-700"
+          >
+            Les membres sans 2FA devront l'activer à leur prochaine connexion.
           </p>
         </div>
-        <Switch :model-value="required" :disabled="saving" aria-label="Exiger la double authentification" @update:model-value="toggle" />
-      </div>
-      <div v-if="stats" class="mt-4 space-y-2 rounded-lg border px-4 py-3">
-        <div class="flex items-center justify-between text-sm">
-          <span class="font-medium">Membres protégés</span>
-          <span class="text-muted-foreground tabular-nums">{{ stats.twoFactorEnabled }} sur {{ stats.members }} · {{ coverage }} %</span>
-        </div>
-        <div class="bg-muted h-2 overflow-hidden rounded-full">
-          <div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${coverage}%` }" />
-        </div>
-        <p v-if="required && stats.twoFactorEnabled < stats.members" class="text-xs text-amber-700">
-          Les membres sans 2FA devront l'activer à leur prochaine connexion.
-        </p>
-      </div>
-    </CardContent>
-  </Card>
+      </CardContent>
+    </Card>
 
-  <ConfirmDialog
-    v-model:open="confirmOpen"
-    title="Exiger la double authentification ?"
-    description="Les membres qui ne l'ont pas encore activée devront le faire à leur prochaine visite, et n'obtiendront plus d'accès aux applications d'ici là. Si vous ne l'avez pas encore activée, vous devrez le faire aussi."
-    confirm-label="Exiger"
-    :loading="saving"
-    @confirm="save(true)"
-  />
+    <ConfirmDialog
+      v-model:open="confirmOpen"
+      title="Exiger la double authentification ?"
+      description="Les membres qui ne l'ont pas encore activée devront le faire à leur prochaine visite, et n'obtiendront plus d'accès aux applications d'ici là. Si vous ne l'avez pas encore activée, vous devrez le faire aussi."
+      confirm-label="Exiger"
+      :loading="saving"
+      @confirm="save(true)"
+    />
+  </div>
 </template>

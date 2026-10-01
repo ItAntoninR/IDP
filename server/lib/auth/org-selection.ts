@@ -13,6 +13,7 @@ export async function markOrganizationSelected(ctx: HookContext) {
   if (ctx.path !== "/organization/set-active") return;
   if (ctx.context.returned instanceof Error) return;
   const sessionId = (await getSessionFromCtx(ctx))?.session.id;
+
   if (!sessionId) return;
   await db.update(schema.session).set({ organizationSelectedAt: new Date() }).where(eq(schema.session.id, sessionId));
 }
@@ -26,11 +27,16 @@ export async function needsOrganizationSelection({
   user: { id: string };
   session: Record<string, unknown>;
 }): Promise<boolean> {
-  const selectedAt = session.organizationSelectedAt ? new Date(session.organizationSelectedAt as string | Date).getTime() : 0;
+  const selectedAt = session.organizationSelectedAt
+    ? new Date(session.organizationSelectedAt as string | Date).getTime()
+    : 0;
+
   if (Date.now() - selectedAt < SELECTION_WINDOW_MS) return false;
   if (!session.impersonatedBy) {
     const twoFactor = await twoFactorStatus(user.id);
+
     if (twoFactor.requiredBy.length && !twoFactor.enabled) return true;
   }
+
   return (await countMemberships(user.id)) > 1;
 }
