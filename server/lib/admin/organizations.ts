@@ -7,6 +7,7 @@ import { INVITATION_TTL_SECONDS, sendInvitation } from "../auth/invitations";
 import { audit } from "../support/audit";
 import { likePattern } from "../org-people";
 import { logoUrl, logoVersion } from "../org-profile";
+import { deleteOrganizationConnectorClients } from "../connectors/connectors";
 
 export interface Actor {
   actorId: string;
@@ -283,6 +284,7 @@ export async function deleteOrganization(
       .where(eq(schema.session.activeOrganizationId, id));
     await tx.delete(schema.oauthRefreshToken).where(eq(schema.oauthRefreshToken.referenceId, id));
     await tx.delete(schema.oauthConsent).where(eq(schema.oauthConsent.referenceId, id));
+    await deleteOrganizationConnectorClients(tx, id);
     await tx.delete(schema.organization).where(eq(schema.organization.id, id));
 
     return row?.n ?? 0;

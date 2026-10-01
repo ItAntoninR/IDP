@@ -51,3 +51,27 @@ export interface OrgRights {
 
 export const parsePermission = (p: unknown): PermissionState =>
   typeof p === "string" ? (JSON.parse(p) as PermissionState) : ((p ?? {}) as PermissionState);
+
+export interface OrgConnector {
+  id: string;
+  name: string;
+  clientId: string;
+  status: "active" | "revoked";
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdBy: { id: string; name: string | null; email: string | null } | null;
+}
+
+export interface ConnectorPage {
+  connectors: OrgConnector[];
+  total: number;
+  active: number;
+}
+
+export interface PairingOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+}

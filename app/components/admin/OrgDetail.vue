@@ -192,6 +192,8 @@ watch(() => props.id, load, { immediate: true });
             <TabsTrigger value="members">Membres · {{ detail.counts.members }}</TabsTrigger>
 
             <TabsTrigger value="invitations">Invitations · {{ detail.counts.pendingInvitations }}</TabsTrigger>
+
+            <TabsTrigger value="connectors">Connecteurs</TabsTrigger>
           </TabsList>
 
           <TabsContent
@@ -327,6 +329,14 @@ watch(() => props.id, load, { immediate: true });
                 :page-size="invitations.pageSize"
               />
             </div>
+          </TabsContent>
+
+          <TabsContent value="connectors">
+            <OrgConnectorsTable
+              :endpoint="`/api/admin/organizations/${id}/connectors`"
+              :can-rename="false"
+              can-revoke
+            />
           </TabsContent>
         </Tabs>
 

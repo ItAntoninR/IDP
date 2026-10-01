@@ -231,18 +231,161 @@ Garanties :
 - **Une organisation par jeton** : un utilisateur membre de plusieurs organisations en choisit une à chaque autorisation (`/select-organization`, qui ne liste que les organisations donnant accès à l'application demandée et se passe d'elle-même s'il n'y en a qu'une). Les jetons de renouvellement gardent cette organisation. Les données de deux clients ne peuvent donc jamais se mélanger dans une même session d'application ; pour changer d'organisation, l'application relance l'autorisation.
 - **Forcer le choix de l'organisation** : une application ajoute `prompt=select_account` à la demande d'autorisation (bouton « Changer d'organisation »). La page de choix s'affiche alors toujours, même si l'utilisateur n'a qu'une seule organisation.
 - **Pas d'accès, pas de jeton** : si aucune organisation ne donne `access` à l'application demandée, l'endpoint de jeton répond `403 access_denied` et n'émet rien. C'est vrai aussi au renouvellement : retirer un membre, changer un rôle, réduire les applications autorisées d'une organisation ou suspendre un utilisateur prend effet en une durée de vie de jeton d'accès.
-- **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé.
+- **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé, sauf pour les connecteurs (voir [Connecteurs](#connecteurs)).
 - **Sessions d'impersonation** : jamais de jeton de renouvellement.
-- Catalogue des permissions par application : `datahub: access, export, admin` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)).
+- Catalogue des permissions par application : `datahub: access, export, import, admin` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)).
+
+## Connecteurs
+
+Un connecteur est une machine installée chez un client (sans personne au clavier) qui envoie chaque jour un import au Data hub. Il s'authentifie **en son nom propre**, est rattaché à **une seule organisation**, ne peut **qu'importer**, et peut être révoqué à tout moment. Aucun secret n'est affiché, copié ni stocké côté serveur : la machine génère sa propre paire de clés et seule la clé publique quitte la machine.
+
+### Fonctionnement
+
+1. **Appairage par code** (sur le modèle du « device flow », RFC 8628) : la machine génère une paire de clés EC P-256, envoie la clé publique et reçoit un code à 8 lettres (`BDFG-HJKL`) valable 10 minutes, à montrer à l'installateur.
+2. **Validation par une personne** sur `/connectors/pair` : elle se connecte, saisit le code, choisit l'organisation et le nom du connecteur, puis autorise ou refuse. Seules les organisations où elle a la permission `connector:create` et qui ont accès au Data hub sont proposées.
+3. **Récupération de l'identifiant** : la machine interroge le service toutes les 5 secondes ; une fois l'appairage validé, elle reçoit **une seule fois** son `clientId`. Côté serveur, un client OAuth est créé avec `grant_types: ["client_credentials"]`, `token_endpoint_auth_method: "private_key_jwt"`, la clé publique de la machine comme `jwks`, et le Data hub comme unique ressource.
+4. **Jetons** : avant chaque import, la machine signe une assertion avec sa clé privée (`private_key_jwt`, RFC 7523) et obtient un jeton d'accès par `client_credentials`. Une assertion ne sert qu'une fois (`jti`), expire en 5 minutes au plus et doit viser l'endpoint de jeton.
+5. **Révocation** : depuis « Organisation → Connecteurs ». Le client OAuth est supprimé : plus aucun jeton n'est émis, et le jeton en cours expire au bout de sa durée de vie (10 minutes par défaut).
+
+### Permissions
+
+- Ressource d'organisation `connector` : `create` (« Créer / appairer »), `update` (« Renommer »), `delete` (« Révoquer »). Le gérant les a par défaut ; il peut les donner à d'autres membres avec un rôle personnalisé (page Rôles).
+- Permission d'application `datahub:import` : c'est la seule que porte un jeton de connecteur. Le gérant l'a aussi, pour pouvoir importer à la main ; elle suit le plafond `apps` de l'organisation comme les autres permissions d'application.
+- Aucun jeton n'est émis si le connecteur est révoqué, si l'organisation a été supprimée ou si elle n'a plus accès au Data hub (`403 access_denied`). Un connecteur ne peut jamais demander de jeton pour une autre ressource (`400 invalid_target`) ni d'autres scopes (`400 invalid_scope`).
+
+### Contenu du jeton d'un connecteur
+
+```json
+{
+  "iss": "https://auth.mondomaine.fr/api/auth",
+  "aud": "https://datahub.mondomaine.fr",
+  "sub": "connector-5b0e…",
+  "client_id": "connector-5b0e…",
+  "azp": "connector-5b0e…",
+  "scope": "import",
+  "iat": 1790600000,
+  "exp": 1790600600,
+  "jti": "…",
+  "https://mondomaine.fr/org_id": "org_acme",
+  "https://mondomaine.fr/org_name": "Acme",
+  "https://mondomaine.fr/connector_id": "3f1c…",
+  "https://mondomaine.fr/access": { "org_acme": ["import"] }
+}
+```
+
+Pas de `name`, `email` ni `org_count` : `sub` est l'identifiant du client OAuth du connecteur. Le Data hub exige `import` sur `POST /import-batches` et peut tracer l'import avec `connector_id`.
+
+### Contrat HTTP pour la machine
+
+**1. Demander un appairage** (public, 10 requêtes par minute et par IP) :
+
+```http
+POST /api/connectors/pairing
+Content-Type: application/json
+
+{ "publicKey": { "kty": "EC", "crv": "P-256", "x": "…", "y": "…" }, "name": "Serveur agence Lyon" }
+```
+
+```json
+{
+  "deviceCode": "k3J…",
+  "userCode": "BDFG-HJKL",
+  "verificationUri": "https://auth.mondomaine.fr/connectors/pair",
+  "verificationUriComplete": "https://auth.mondomaine.fr/connectors/pair?code=BDFG-HJKL",
+  "expiresIn": 600,
+  "interval": 5
+}
+```
+
+Une clé privée (membre `d`) ou une clé qui n'est pas une clé EC P-256 valide est refusée (`400`). Le `deviceCode` reste dans la machine : le serveur n'en garde qu'une empreinte.
+
+**2. Attendre la validation** (public, 30 requêtes par minute et par IP), toutes les `interval` secondes :
+
+```http
+POST /api/connectors/pairing/token
+Content-Type: application/json
+
+{ "deviceCode": "k3J…" }
+```
+
+- `400 { "error": "authorization_pending" }` : pas encore validé, réessayer ;
+- `400 { "error": "slow_down" }` : trop rapide, ajouter 5 secondes à l'intervalle ;
+- `400 { "error": "expired_token" }` : code expiré, recommencer l'étape 1 ;
+- `400 { "error": "access_denied" }` : appairage refusé ;
+- `400 { "error": "invalid_grant" }` : code inconnu ou déjà utilisé ;
+- `200`, une seule fois :
+
+```json
+{
+  "clientId": "connector-5b0e…",
+  "issuer": "https://auth.mondomaine.fr/api/auth",
+  "tokenEndpoint": "https://auth.mondomaine.fr/api/auth/oauth2/token",
+  "resource": "https://datahub.mondomaine.fr"
+}
+```
+
+**3. Obtenir un jeton d'accès** avant chaque import. L'assertion est un JWT signé en ES256 avec la clé privée de la machine, de contenu :
+
+```json
+{
+  "iss": "<clientId>",
+  "sub": "<clientId>",
+  "aud": "<tokenEndpoint>",
+  "jti": "<uuid aléatoire>",
+  "iat": 1790600000,
+  "exp": 1790600120
+}
+```
+
+```http
+POST /api/auth/oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&client_assertion=eyJhbGciOiJFUzI1NiJ9…
+&resource=https%3A%2F%2Fdatahub.mondomaine.fr
+```
+
+Exemple avec `jose` (Node.js) :
+
+```ts
+const assertion = await new SignJWT({})
+  .setProtectedHeader({ alg: "ES256" })
+  .setIssuer(clientId)
+  .setSubject(clientId)
+  .setAudience(tokenEndpoint)
+  .setJti(crypto.randomUUID())
+  .setIssuedAt()
+  .setExpirationTime("2m")
+  .sign(privateKey);
+```
+
+Réponse : `{ "access_token": "eyJ…", "token_type": "Bearer", "expires_in": 600, "scope": "import" }`. Pas de jeton de renouvellement : la machine signe une nouvelle assertion à chaque fois.
+
+**4. Appeler le Data hub** avec le jeton :
+
+```http
+POST https://datahub.mondomaine.fr/import-batches
+Authorization: Bearer eyJ…
+```
+
+### Gestion
+
+- `/org/connectors` (« Organisation → Connecteurs ») : liste des connecteurs de l'organisation active (nom, auteur de l'appairage, dates, dernière connexion, statut), renommage et révocation selon les permissions.
+- L'équipe voit et révoque les connecteurs de toute organisation depuis `/admin/orgs` (onglet Connecteurs).
+- API de gestion (organisation active) : `GET /api/account/organization/connectors` (une des permissions `connector`), `PATCH /api/account/organization/connectors/:id` (`{ "name": "…" }`, `connector:update`), `DELETE /api/account/organization/connectors/:id` (`connector:delete`).
+- API de validation (`connector:create` sur l'organisation choisie) : `GET /api/account/connectors/organizations`, `GET /api/account/connectors/pairing?code=`, `POST /api/account/connectors/pairing/approve` (`{ userCode, organizationId, name }`) et `POST /api/account/connectors/pairing/deny` (`{ userCode, organizationId }`).
+- Journal d'audit : `connector.paired`, `connector.pairing.denied`, `connector.renamed`, `connector.revoked`, avec l'auteur, l'organisation et le nom du connecteur.
 
 ## Modèle d'accès
 
 - **Organisations** : créées par l'équipe (`/admin/orgs`) avec un nom, un slug, les applications autorisées (plafond `apps`) et l'email du futur gérant, qui reçoit une invitation. L'équipe peut ensuite inviter une personne avec n'importe quel rôle de l'organisation. Les membres de l'équipe ne deviennent jamais membres.
-- **Rôles** : `owner` (gérant : membres, invitations, rôles, paramètres ; toutes les permissions d'application) et `member` (aucune permission d'application). Les gérants créent d'autres rôles depuis leur espace ; ils ne peuvent choisir que des permissions sur les applications autorisées pour leur organisation, et le serveur refuse tout ce qui dépasse ce plafond.
+- **Rôles** : `owner` (gérant : membres, invitations, rôles, connecteurs, paramètres ; toutes les permissions d'application) et `member` (aucune permission d'application). Les gérants créent d'autres rôles depuis leur espace ; ils ne peuvent choisir que des permissions sur les applications autorisées pour leur organisation, et le serveur refuse tout ce qui dépasse ce plafond.
 - **Gérants** : ils modifient le nom et le logo de l'organisation (Paramètres) et peuvent transférer leur rôle à un autre membre. L'organisation garde toujours au moins un gérant.
 - **Membres** : ils peuvent quitter une organisation depuis « Mon compte → Profil ».
 - **Inscription sur invitation uniquement**, quelle que soit la méthode (mot de passe, lien par email, Google, Microsoft), sauf pour l'équipe venant d'Authentik.
-- **Journal d'audit** (`/admin/audit`) : impersonation, création, modification et suppression d'organisations, plafonds, rôles, invitations, changements de rôle, retraits et départs de membres, transferts du rôle de gérant, suspensions, suppressions et exports de comptes, ainsi que l'activation ou la désactivation de la double authentification et l'ajout ou la suppression de passkeys par l'utilisateur lui-même.
+- **Journal d'audit** (`/admin/audit`) : impersonation, création, modification et suppression d'organisations, plafonds, rôles, invitations, changements de rôle, retraits et départs de membres, transferts du rôle de gérant, suspensions, suppressions et exports de comptes, l'appairage, le refus, le renommage et la révocation des connecteurs, ainsi que l'activation ou la désactivation de la double authentification et l'ajout ou la suppression de passkeys par l'utilisateur lui-même.
 
 ## Déploiement
 
@@ -260,12 +403,12 @@ L'image lance `node .output/server/index.mjs` avec un utilisateur non root sur l
 - **RGPD** : les données personnelles, les durées de conservation, la suppression et les droits des personnes sont décrits dans [docs/RGPD.md](docs/RGPD.md).
 - **Suppression de compte** : depuis la page Profil, confirmée par un lien envoyé par email et valable 1 heure (`POST /api/account/deletion`, puis `/api/account/deletion/confirm`), ou par un administrateur à la demande de la personne (`DELETE /api/admin/users/:id`). Le compte est **pseudonymisé** : l'identifiant reste pour les applications, tout le reste est effacé. Une archive (identité et historique de connexion) est gardée 1 an pour les réquisitions des autorités, consultable depuis `/admin/archives`. La suppression est refusée au seul gérant d'une organisation et aux comptes de l'équipe. Les routes de suppression de Better Auth (`/delete-user`, `/admin/remove-user`) sont désactivées.
 - **Export des données** (droit d'accès), réservé aux administrateurs pour l'instant : `GET /api/admin/users/:id/export` renvoie un fichier JSON (profil, moyens de connexion, passkeys, appareils connus, sessions, organisations, invitations, applications autorisées, activité). Les secrets (empreinte du mot de passe, secrets de 2FA, clés de passkey, jetons) ne sont jamais inclus ; chaque export est tracé et la personne est prévenue par email.
-- **Durées de conservation** appliquées chaque jour par une tâche qui ne tourne que sur un serveur à la fois : journal d'audit 1 an, appareils connus 13 mois sans activité, archives 1 an, invitations et liens expirés, comptes inactifs supprimés après 3 ans (avec un avertissement 30 jours avant).
-- **Suppression d'organisation** : réservée aux administrateurs, avec saisie du slug pour confirmer ; elle supprime les membres, les invitations, les rôles, ainsi que les consentements et jetons de renouvellement liés à l'organisation.
+- **Durées de conservation** appliquées chaque jour par une tâche qui ne tourne que sur un serveur à la fois : journal d'audit 1 an, appareils connus 13 mois sans activité, archives 1 an, invitations, liens et appairages de connecteurs expirés, comptes inactifs supprimés après 3 ans (avec un avertissement 30 jours avant).
+- **Suppression d'organisation** : réservée aux administrateurs, avec saisie du slug pour confirmer ; elle supprime les membres, les invitations, les rôles, les connecteurs (et leurs clients OAuth), ainsi que les consentements et jetons de renouvellement liés à l'organisation.
 - **Logos des organisations** : images PNG, JPEG ou WebP (réduites à 256 px dans le navigateur, 200 Ko maximum, jamais de SVG), servies par `/api/public/organizations/:id/logo?v=<empreinte>` avec un cache permanent.
 - Les cookies sont `httpOnly`, `sameSite=lax` et `Secure` en HTTPS.
 - Le CORS et les origines de confiance sont limités aux origines des applications.
 - CSP stricte (`script-src 'self'` plus les empreintes des scripts de démarrage de Nuxt), `frame-ancestors 'none'`, HSTS en HTTPS.
-- La limitation des tentatives de Better Auth est stockée en base, avec des limites plus strictes sur la connexion, l'inscription, les liens par email, la réinitialisation du mot de passe et les invitations.
+- La limitation des tentatives de Better Auth est stockée en base, avec des limites plus strictes sur la connexion, l'inscription, les liens par email, la réinitialisation du mot de passe et les invitations. Les routes d'appairage des connecteurs ont leurs propres limites, dans la même table.
 - Chaque route d'administration vérifie le rôle global `admin` côté serveur ; les opérations sur les organisations passent par les contrôles de permissions de Better Auth.
 - Les logs sont en JSON et masquent toute clé ressemblant à un secret (jetons, mots de passe, cookies).

@@ -2,6 +2,7 @@
 import { watchDebounced } from "@vueuse/core";
 import {
   Building2,
+  Cable,
   Filter,
   KeyRound,
   MailPlus,
@@ -41,6 +42,7 @@ const ICONS: Record<string, Component> = {
   role: KeyRound,
   invitation: MailPlus,
   member: Users,
+  connector: Cable,
   "user.ban": ShieldOff,
   "user.unban": ShieldCheck,
   "user.two_factor": ShieldCheck,
@@ -53,6 +55,8 @@ const TARGET_LABELS: Record<string, string> = {
   member: "Membre",
   invitation: "Invitation",
   role: "Rôle",
+  connector: "Connecteur",
+  connector_pairing: "Appairage",
 };
 
 const filters = reactive({ action: "", actorId: "", organizationId: "", targetId: "", from: "", to: "" });
@@ -97,7 +101,7 @@ watch(period, (value) => {
   filters.from = value === "all" ? "" : startOfPeriod(Number(value));
   filters.to = "";
 });
-const ORGANIZATION_ACTIONS = new Set(["organization.", "role.", "invitation.", "member."]);
+const ORGANIZATION_ACTIONS = new Set(["organization.", "role.", "invitation.", "member.", "connector."]);
 const actionOptions = computed(() =>
   Object.entries(AUDIT_LABELS).filter(
     ([value]) => !props.organizationScope || [...ORGANIZATION_ACTIONS].some((prefix) => value.startsWith(prefix)),

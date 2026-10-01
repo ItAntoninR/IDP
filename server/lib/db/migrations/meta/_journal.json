@@ -64,6 +64,13 @@
       "when": 1790755063811,
       "tag": "0008_account_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790860365079,
+      "tag": "0009_connectors",
+      "breakpoints": true
     }
   ]
 }
