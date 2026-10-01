@@ -11,6 +11,4 @@ coverage/
 .data/
 *.tsbuildinfo
 .claude/
-packages/
-examples/
 DECISIONS.md
