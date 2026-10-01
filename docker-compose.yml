@@ -20,8 +20,29 @@ x-authentik: &authentik
     AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
   volumes:
     - ./docker/authentik/blueprints:/blueprints/custom:ro
+  networks:
+    - ago
 
 services:
+  auth-service:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://auth:auth@postgres:5432/auth
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MIGRATE_ON_START: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    networks:
+      - ago
+
   postgres:
     image: postgres:17
     environment:
@@ -38,6 +59,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - ago
 
   mailpit:
     image: axllent/mailpit:latest
@@ -47,6 +70,8 @@ services:
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
       MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    networks:
+      - ago
 
   authentik-db:
     image: postgres:16-alpine
@@ -61,6 +86,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - ago
 
   authentik-server:
     <<: *authentik
@@ -75,3 +102,7 @@ services:
 volumes:
   pgdata:
   authentik-db:
+
+networks:
+  ago:
+    name: ago
