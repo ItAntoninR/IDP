@@ -33,11 +33,16 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       MIGRATE_ON_START: "true"
+      # *.localhost resolves to 127.0.0.1 in the browser and to the Authentik
+      # container through the network alias below: one issuer URL for both.
+      AUTHENTIK_ISSUER: http://authentik.localhost:9000/application/o/auth-service
     depends_on:
       postgres:
         condition: service_healthy
       mailpit:
         condition: service_started
+      authentik-server:
+        condition: service_healthy
     ports:
       - "3000:3000"
     networks:
@@ -94,6 +99,10 @@ services:
     command: server
     ports:
       - "9000:9000"
+    networks:
+      ago:
+        aliases:
+          - authentik.localhost
 
   authentik-worker:
     <<: *authentik
