@@ -6,7 +6,9 @@ export const INVITATION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 export function invitationUrl(invitationId: string, email: string): string {
   const url = new URL(`/invite/${encodeURIComponent(invitationId)}`, env.AUTH_BASE_URL);
+
   url.searchParams.set("email", email);
+
   return url.toString();
 }
 

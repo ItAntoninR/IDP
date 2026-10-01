@@ -14,13 +14,16 @@ const modelValue = useVModel(props, "modelValue", emits, { passive: true });
     <select
       v-model="modelValue"
       data-slot="native-select"
-      :class="cn(
-        'border-input h-9 w-full appearance-none rounded-md border bg-white px-3 py-1 pr-8 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
-        props.class,
-      )"
+      :class="
+        cn(
+          'border-input h-9 w-full appearance-none rounded-md border bg-white px-3 py-1 pr-8 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+          props.class,
+        )
+      "
     >
       <slot />
     </select>
+
     <ChevronDown class="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2" />
   </div>
 </template>

@@ -23,9 +23,21 @@ export async function searchArchives(email: string) {
 }
 
 export async function exportArchive(id: string, actor: { actorId: string; impersonatedBy: string | null }) {
-  const [archive] = await db.select().from(schema.deletedAccountArchive).where(eq(schema.deletedAccountArchive.id, id)).limit(1);
+  const [archive] = await db
+    .select()
+    .from(schema.deletedAccountArchive)
+    .where(eq(schema.deletedAccountArchive.id, id))
+    .limit(1);
+
   if (!archive) return null;
-  await audit({ ...actor, action: "archive.export", targetType: "user", targetId: archive.userId, metadata: { archiveId: id } });
+  await audit({
+    ...actor,
+    action: "archive.export",
+    targetType: "user",
+    targetId: archive.userId,
+    metadata: { archiveId: id },
+  });
+
   return {
     exportedAt: new Date().toISOString(),
     notice:

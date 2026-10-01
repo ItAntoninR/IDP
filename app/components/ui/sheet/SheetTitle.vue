@@ -11,7 +11,11 @@ const forwarded = useForwardProps(delegatedProps);
 </script>
 
 <template>
-  <DialogTitle data-slot="sheet-title" v-bind="forwarded" :class="cn('text-lg font-semibold', props.class)">
+  <DialogTitle
+    data-slot="sheet-title"
+    v-bind="forwarded"
+    :class="cn('text-lg font-semibold', props.class)"
+  >
     <slot />
   </DialogTitle>
 </template>

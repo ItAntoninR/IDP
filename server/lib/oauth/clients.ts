@@ -14,6 +14,7 @@ const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 export const applicationTypeFor = (redirectUris: string[]): "web" | "native" =>
   redirectUris.some((u) => {
     const url = new URL(u);
+
     return url.protocol === "http:" && LOOPBACK.has(url.hostname);
   })
     ? "native"
@@ -36,6 +37,7 @@ async function withSystemAdminSession<T>(fn: (headers: Headers) => Promise<T>): 
     const created = await runAsSystem(() =>
       auth.api.signUpEmail({ body: { email: SYSTEM_USER_EMAIL, password, name: "System" } }),
     );
+
     [system] = await db.select().from(schema.user).where(eq(schema.user.id, created.user.id));
   } else {
     const hash = await hashPassword(password);
@@ -43,9 +45,18 @@ async function withSystemAdminSession<T>(fn: (headers: Headers) => Promise<T>): 
       .select()
       .from(schema.account)
       .where(and(eq(schema.account.userId, system.id), eq(schema.account.providerId, "credential")));
+
     if (credential) await ctx.internalAdapter.updatePassword(system.id, hash);
-    else await ctx.internalAdapter.linkAccount({ userId: system.id, providerId: "credential", accountId: system.id, password: hash });
+    else {
+      await ctx.internalAdapter.linkAccount({
+        userId: system.id,
+        providerId: "credential",
+        accountId: system.id,
+        password: hash,
+      });
+    }
   }
+
   await db
     .update(schema.user)
     .set({ role: "admin", emailVerified: true, banned: false })
@@ -83,8 +94,10 @@ async function linkOnlyResource(clientId: string, resource: string) {
 
 export async function seedClients(opts: { rotateSecrets?: boolean } = {}): Promise<SeededClient[]> {
   await auth.$context;
+
   return withSystemAdminSession(async (headers) => {
     const results: SeededClient[] = [];
+
     for (const appId of APP_IDS) {
       const app = APPS[appId];
       const [existing] = await db
@@ -106,6 +119,7 @@ export async function seedClients(opts: { rotateSecrets?: boolean } = {}): Promi
 
       let clientId: string;
       let clientSecret: string | undefined;
+
       if (!existing) {
         const created = await auth.api.adminCreateOAuthClient({
           headers,
@@ -116,6 +130,7 @@ export async function seedClients(opts: { rotateSecrets?: boolean } = {}): Promi
             token_endpoint_auth_method: "client_secret_basic",
           },
         });
+
         clientId = created.client_id;
         clientSecret = created.client_secret;
       } else {
@@ -123,12 +138,15 @@ export async function seedClients(opts: { rotateSecrets?: boolean } = {}): Promi
         await auth.api.adminUpdateOAuthClient({ headers, body: { client_id: clientId, update: common } });
         if (opts.rotateSecrets) {
           const rotated = await auth.api.rotateClientSecret({ headers, body: { client_id: clientId } });
+
           clientSecret = rotated.client_secret;
         }
       }
+
       await linkOnlyResource(clientId, app.resource);
       results.push({ appId, clientId, clientSecret, created: !existing, resource: app.resource });
     }
+
     return results;
   });
 }

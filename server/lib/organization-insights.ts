@@ -36,7 +36,10 @@ export async function organizationInsights(organizationId: string) {
           gte(schema.invitation.expiresAt, new Date()),
         ),
       ),
-    db.select({ n: count() }).from(schema.organizationRole).where(eq(schema.organizationRole.organizationId, organizationId)),
+    db
+      .select({ n: count() })
+      .from(schema.organizationRole)
+      .where(eq(schema.organizationRole.organizationId, organizationId)),
     db.execute<{ role: string; n: number }>(
       sql`select trim(r) as role, count(*)::int as n
           from ${schema.member}, unnest(string_to_array(${schema.member.role}, ',')) as r
@@ -54,7 +57,9 @@ export async function organizationInsights(organizationId: string) {
       })
       .from(schema.auditLog)
       .leftJoin(schema.user, eq(schema.user.id, schema.auditLog.actorId))
-      .where(and(eq(schema.auditLog.organizationId, organizationId), notLike(schema.auditLog.action, "impersonation.%")))
+      .where(
+        and(eq(schema.auditLog.organizationId, organizationId), notLike(schema.auditLog.action, "impersonation.%")),
+      )
       .orderBy(desc(schema.auditLog.createdAt))
       .limit(RECENT_ACTIVITY),
   ]);

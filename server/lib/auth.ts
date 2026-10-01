@@ -19,7 +19,7 @@ import { sendEmailInBackground } from "./email/mailer";
 import { magicLinkTemplate, resetPasswordTemplate, verifyEmailTemplate } from "./email/templates";
 import { recordActivity } from "./account-lifecycle";
 import { logger } from "./support/logger";
-import { ac, roles } from "../../shared/permissions";
+import { ac, roles, APP_IDS } from "../../shared/permissions";
 import { AUTHENTIK_PROVIDER_ID, assertSignupAllowed, isAuthentikCallback } from "./auth/signup-guard";
 import { afterHook, beforeHook } from "./auth/hooks";
 import { impersonationClaim } from "./auth/impersonation";
@@ -30,11 +30,11 @@ import { auditTwoFactorChange } from "./auth/security-audit";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "./auth/invitations";
 import { buildAccessTokenClaims } from "./auth/access-claims";
 import { APPS } from "./apps";
-import { APP_IDS } from "../../shared/permissions";
 import { hasGlobalRole } from "./support/roles";
 import { needsOrganizationSelection, organizationSelectionField } from "./auth/org-selection";
 
 const secureCookies = env.AUTH_BASE_URL.startsWith("https://");
+
 export const ISSUER = `${env.AUTH_BASE_URL}/api/auth`;
 const generatingSchema = process.env.AUTH_SCHEMA_GENERATION === "1";
 const isAdminUser = ({ user }: { user?: Record<string, unknown> }) =>
@@ -127,6 +127,7 @@ export const auth = betterAuth({
       update: {
         after: async (user, ctx) => {
           const changed = user as { id: string; email: string; twoFactorEnabled?: boolean | null };
+
           alertOnTwoFactorChange(changed, ctx?.path);
           await auditTwoFactorChange(changed, ctx as never);
         },
@@ -134,6 +135,7 @@ export const auth = betterAuth({
       create: {
         before: async (user, ctx) => {
           await assertSignupAllowed(user, ctx);
+
           return { data: isAuthentikCallback(ctx) ? { ...user, role: "admin", emailVerified: true } : user };
         },
       },

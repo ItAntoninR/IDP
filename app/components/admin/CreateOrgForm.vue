@@ -42,9 +42,17 @@ async function submit() {
 </script>
 
 <template>
-  <form class="space-y-5" @submit.prevent="submit">
+  <form
+    class="space-y-5"
+    @submit.prevent="submit"
+  >
     <div class="grid gap-4 sm:grid-cols-2">
-      <FormField v-model="name" label="Nom" required />
+      <FormField
+        v-model="name"
+        label="Nom"
+        required
+      />
+
       <FormField
         :model-value="slug"
         label="Slug"
@@ -53,6 +61,7 @@ async function submit() {
         @update:model-value="(v) => ((slugTouched = true), (slug = v))"
       />
     </div>
+
     <FormField
       v-model="ownerEmail"
       label="Email du gérant"
@@ -60,13 +69,31 @@ async function submit() {
       required
       hint="Il recevra une invitation pour gérer l'organisation."
     />
+
     <div class="grid gap-2">
       <Label>Applications autorisées</Label>
-      <AdminAppsPicker v-model="apps" class="pt-1" />
+
+      <AdminAppsPicker
+        v-model="apps"
+        class="pt-1"
+      />
     </div>
+
     <DialogFooter>
-      <Button type="button" variant="outline" @click="emit('cancel')">Annuler</Button>
-      <Button type="submit" :disabled="loading">Créer et inviter</Button>
+      <Button
+        type="button"
+        variant="outline"
+        @click="emit('cancel')"
+      >
+        Annuler
+      </Button>
+
+      <Button
+        type="submit"
+        :disabled="loading"
+      >
+        Créer et inviter
+      </Button>
     </DialogFooter>
   </form>
 </template>

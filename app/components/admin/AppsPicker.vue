@@ -11,8 +11,16 @@ function toggle(app: string, checked: boolean | "indeterminate") {
 
 <template>
   <div class="flex flex-wrap gap-4">
-    <Label v-for="app in APP_IDS" :key="app" class="cursor-pointer font-normal">
-      <Checkbox :aria-label="RESOURCE_LABELS[app] ?? app" :model-value="model.includes(app)" @update:model-value="(v) => toggle(app, v)" />
+    <Label
+      v-for="app in APP_IDS"
+      :key="app"
+      class="cursor-pointer font-normal"
+    >
+      <Checkbox
+        :aria-label="RESOURCE_LABELS[app] ?? app"
+        :model-value="model.includes(app)"
+        @update:model-value="(v) => toggle(app, v)"
+      />
       {{ RESOURCE_LABELS[app] ?? app }}
     </Label>
   </div>

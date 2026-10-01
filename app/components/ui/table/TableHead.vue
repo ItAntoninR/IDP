@@ -6,7 +6,15 @@ const props = defineProps<{ class?: HTMLAttributes["class"] }>();
 </script>
 
 <template>
-  <th data-slot="table-head" :class="cn('text-muted-foreground h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap uppercase tracking-wide', props.class)">
+  <th
+    data-slot="table-head"
+    :class="
+      cn(
+        'text-muted-foreground h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap uppercase tracking-wide',
+        props.class,
+      )
+    "
+  >
     <slot />
   </th>
 </template>

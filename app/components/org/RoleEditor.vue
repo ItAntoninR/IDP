@@ -16,13 +16,17 @@ const loading = ref(false);
 async function submit() {
   loading.value = true;
   const saved = await props.save(name.value.trim().toLowerCase(), permission.value);
+
   loading.value = false;
   if (saved) emit("close");
 }
 </script>
 
 <template>
-  <form class="space-y-5" @submit.prevent="submit">
+  <form
+    class="space-y-5"
+    @submit.prevent="submit"
+  >
     <FormField
       v-model="name"
       label="Nom du rôle"
@@ -30,10 +34,27 @@ async function submit() {
       pattern="[a-z0-9-]+"
       hint="Lettres minuscules, chiffres et tirets."
     />
-    <PermissionPicker v-model="permission" :allowed-apps="allowedApps" />
+
+    <PermissionPicker
+      v-model="permission"
+      :allowed-apps="allowedApps"
+    />
+
     <div class="flex justify-end gap-2 border-t pt-4">
-      <Button type="button" variant="outline" @click="emit('close')">Annuler</Button>
-      <Button type="submit" :disabled="loading">{{ initial ? "Enregistrer" : "Créer le rôle" }}</Button>
+      <Button
+        type="button"
+        variant="outline"
+        @click="emit('close')"
+      >
+        Annuler
+      </Button>
+
+      <Button
+        type="submit"
+        :disabled="loading"
+      >
+        {{ initial ? "Enregistrer" : "Créer le rôle" }}
+      </Button>
     </div>
   </form>
 </template>

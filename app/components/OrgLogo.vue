@@ -13,9 +13,21 @@ watch(
 
 <template>
   <span
-    :class="cn('bg-muted flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border text-sm font-semibold', props.class)"
+    :class="
+      cn(
+        'bg-muted flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border text-sm font-semibold',
+        props.class,
+      )
+    "
   >
-    <img v-if="logoUrl && !failed" :src="logoUrl" :alt="`Logo de ${name}`" class="size-full object-contain" @error="failed = true" />
+    <img
+      v-if="logoUrl && !failed"
+      :src="logoUrl"
+      :alt="`Logo de ${name}`"
+      class="size-full object-contain"
+      @error="failed = true"
+    />
+
     <template v-else>{{ name[0]?.toUpperCase() }}</template>
   </span>
 </template>

@@ -10,5 +10,6 @@ export default defineEventHandler((event) => {
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["content-type", "authorization", "x-org-id"],
   });
+
   if (handled) return null;
 });

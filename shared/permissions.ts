@@ -6,6 +6,7 @@ export const APP_PERMISSIONS = {
 } as const;
 
 export type AppId = keyof typeof APP_PERMISSIONS;
+
 export const APP_IDS = Object.keys(APP_PERMISSIONS) as AppId[];
 
 export const APP_LABELS: Record<AppId, string> = {
@@ -41,6 +42,7 @@ export const member = ac.newRole({
 });
 
 export const roles = { owner, member };
+
 export const STATIC_ROLES = Object.keys(roles) as (keyof typeof roles)[];
 
 export type PermissionMap = Partial<Record<string, string[]>>;
@@ -49,11 +51,13 @@ export const isAppId = (value: string): value is AppId => value in APP_PERMISSIO
 
 export function clampToCeiling(perms: PermissionMap, allowedApps: readonly string[]): PermissionMap {
   const out: PermissionMap = {};
+
   for (const [resource, actions] of Object.entries(perms)) {
     if (!actions?.length) continue;
     if (isAppId(resource) && !allowedApps.includes(resource)) continue;
     out[resource] = [...actions];
   }
+
   return out;
 }
 

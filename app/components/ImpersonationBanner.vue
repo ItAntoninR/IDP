@@ -19,7 +19,15 @@ async function stop() {
     class="sticky top-0 z-50 flex flex-wrap items-center justify-center gap-3 bg-amber-400 px-4 py-2 text-sm font-medium text-amber-950"
   >
     <span>Vous agissez en tant que {{ session.data?.user.name || session.data?.user.email }}</span>
+
     <span aria-hidden="true">—</span>
-    <button class="underline underline-offset-2 hover:no-underline" :disabled="stopping" @click="stop">Arrêter</button>
+
+    <button
+      class="underline underline-offset-2 hover:no-underline"
+      :disabled="stopping"
+      @click="stop"
+    >
+      Arrêter
+    </button>
   </div>
 </template>

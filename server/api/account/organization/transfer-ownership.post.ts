@@ -9,12 +9,16 @@ const FAILURES = {
 export default defineEventHandler(async (event) => {
   const session = await requireSession(event);
   const organizationId = (session.session as { activeOrganizationId?: string | null }).activeOrganizationId;
+
   if (!organizationId) throw apiError(400, "NO_ACTIVE_ORGANIZATION", "No active organization");
   const { memberId } = await parseBody(event, transferOwnershipSchema);
   const result = await transferOwnership(organizationId, memberId, actorOf(session));
+
   if (!result.ok) {
     const [status, message] = FAILURES[result.code];
+
     throw apiError(status, result.code, message);
   }
+
   return { transferred: true };
 });

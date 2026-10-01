@@ -1,7 +1,8 @@
 import { audit } from "../support/audit";
 import { twoFactorChange } from "./security-alerts";
 
-type SessionContext = { context?: { session?: { session?: { impersonatedBy?: string | null } | null } | null } } | null | undefined;
+type SessionContext =
+  { context?: { session?: { session?: { impersonatedBy?: string | null } | null } | null } } | null | undefined;
 
 const impersonatorOf = (ctx: SessionContext) => ctx?.context?.session?.session?.impersonatedBy ?? null;
 
@@ -10,6 +11,7 @@ export async function auditTwoFactorChange(
   ctx: (SessionContext & { path?: string }) | null | undefined,
 ) {
   const change = twoFactorChange(user, ctx?.path);
+
   if (!change) return;
   await audit({
     action: change === "enabled" ? "user.two_factor.enable" : "user.two_factor.disable",

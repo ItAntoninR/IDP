@@ -11,7 +11,11 @@ const forwarded = useForwardProps(delegatedProps);
 </script>
 
 <template>
-  <DropdownMenuLabel data-slot="dropdown-menu-label" v-bind="forwarded" :class="cn('text-muted-foreground px-2 py-1.5 text-xs font-medium', props.class)">
+  <DropdownMenuLabel
+    data-slot="dropdown-menu-label"
+    v-bind="forwarded"
+    :class="cn('text-muted-foreground px-2 py-1.5 text-xs font-medium', props.class)"
+  >
     <slot />
   </DropdownMenuLabel>
 </template>

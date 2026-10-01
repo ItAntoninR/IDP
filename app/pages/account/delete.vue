@@ -23,6 +23,7 @@ async function confirmDeletion() {
   } finally {
     deleting.value = false;
   }
+
   await authClient.signOut().catch(() => undefined);
   clear();
   clearNuxtState((key) => key.startsWith("managed-org"));
@@ -31,19 +32,53 @@ async function confirmDeletion() {
 </script>
 
 <template>
-  <AuthCard v-if="deleted" title="Compte supprimé" description="Vos accès et vos informations personnelles ont été effacés.">
-    <FormAlert tone="success" message="Un email de confirmation vous a été envoyé." />
-    <Button as-child variant="outline" class="w-full"><NuxtLink to="/sign-in">Retour à la connexion</NuxtLink></Button>
+  <AuthCard
+    v-if="deleted"
+    title="Compte supprimé"
+    description="Vos accès et vos informations personnelles ont été effacés."
+  >
+    <FormAlert
+      tone="success"
+      message="Un email de confirmation vous a été envoyé."
+    />
+
+    <Button
+      as-child
+      variant="outline"
+      class="w-full"
+    >
+      <NuxtLink to="/sign-in">Retour à la connexion</NuxtLink>
+    </Button>
   </AuthCard>
-  <AuthCard v-else title="Supprimer votre compte" :description="session.data ? `Compte : ${session.data.user.email}` : undefined">
+
+  <AuthCard
+    v-else
+    title="Supprimer votre compte"
+    :description="session.data ? `Compte : ${session.data.user.email}` : undefined"
+  >
     <FormAlert :message="error" />
+
     <p class="text-muted-foreground text-sm">
-      La suppression est définitive : vous perdrez l'accès à toutes vos applications et vos informations personnelles seront effacées. Votre
-      identité et votre historique de connexion seront conservés 1 an dans une archive, uniquement pour répondre aux autorités.
+      La suppression est définitive : vous perdrez l'accès à toutes vos applications et vos informations personnelles
+      seront effacées. Votre identité et votre historique de connexion seront conservés 1 an dans une archive,
+      uniquement pour répondre aux autorités.
     </p>
-    <Button variant="destructive" class="w-full" :disabled="deleting || !token" @click="confirmDeletion">
+
+    <Button
+      variant="destructive"
+      class="w-full"
+      :disabled="deleting || !token"
+      @click="confirmDeletion"
+    >
       Supprimer définitivement mon compte
     </Button>
-    <Button as-child variant="ghost" class="w-full"><NuxtLink to="/account">Annuler</NuxtLink></Button>
+
+    <Button
+      as-child
+      variant="ghost"
+      class="w-full"
+    >
+      <NuxtLink to="/account">Annuler</NuxtLink>
+    </Button>
   </AuthCard>
 </template>

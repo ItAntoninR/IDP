@@ -16,6 +16,7 @@ async function change() {
     newPassword: next.value,
     revokeOtherSessions: true,
   });
+
   loading.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
   current.value = "";
@@ -26,6 +27,7 @@ async function change() {
 async function requestLink() {
   loading.value = true;
   const res = await authClient.requestPasswordReset({ email: props.email, redirectTo: "/reset-password" });
+
   loading.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
   toast.success("Un lien pour définir votre mot de passe vient de vous être envoyé.");
@@ -35,9 +37,21 @@ async function requestLink() {
 <template>
   <Card>
     <CardHeader><CardTitle>Mot de passe</CardTitle></CardHeader>
+
     <CardContent>
-      <form v-if="hasPassword" class="grid gap-4 sm:max-w-md" @submit.prevent="change">
-        <FormField v-model="current" label="Mot de passe actuel" type="password" autocomplete="current-password" required />
+      <form
+        v-if="hasPassword"
+        class="grid gap-4 sm:max-w-md"
+        @submit.prevent="change"
+      >
+        <FormField
+          v-model="current"
+          label="Mot de passe actuel"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+
         <FormField
           v-model="next"
           label="Nouveau mot de passe"
@@ -47,11 +61,30 @@ async function requestLink() {
           required
           hint="10 caractères minimum."
         />
-        <div><Button type="submit" :disabled="loading">Modifier</Button></div>
+
+        <div>
+          <Button
+            type="submit"
+            :disabled="loading"
+          >
+            Modifier
+          </Button>
+        </div>
       </form>
-      <div v-else class="text-muted-foreground space-y-3 text-sm">
+
+      <div
+        v-else
+        class="text-muted-foreground space-y-3 text-sm"
+      >
         <p>Vous vous connectez sans mot de passe. Vous pouvez en définir un par email.</p>
-        <Button variant="outline" :disabled="loading" @click="requestLink">Définir un mot de passe</Button>
+
+        <Button
+          variant="outline"
+          :disabled="loading"
+          @click="requestLink"
+        >
+          Définir un mot de passe
+        </Button>
       </div>
     </CardContent>
   </Card>

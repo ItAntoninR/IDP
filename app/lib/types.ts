@@ -46,12 +46,25 @@ export interface Dashboard {
     };
     appAccess: { id: string; label: string; organizations: number }[];
     signups: { week: string; count: number }[];
-    recentActivity: { id: string; action: string; createdAt: string; actorName: string | null; actorEmail: string | null }[];
+    recentActivity: {
+      id: string;
+      action: string;
+      createdAt: string;
+      actorName: string | null;
+      actorEmail: string | null;
+    }[];
   } | null;
 }
 
 export interface OrganizationInsights {
-  organization: { id: string; name: string; slug: string; apps: string[]; requireTwoFactor: boolean; logoUrl: string | null } | null;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    apps: string[];
+    requireTwoFactor: boolean;
+    logoUrl: string | null;
+  } | null;
   stats: { members: number; twoFactorEnabled: number; pendingInvitations: number; customRoles: number };
   roleCounts: Record<string, number>;
   recentActivity: {

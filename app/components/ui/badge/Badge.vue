@@ -7,7 +7,10 @@ const props = defineProps<{ variant?: BadgeVariants["variant"]; class?: HTMLAttr
 </script>
 
 <template>
-  <span data-slot="badge" :class="cn(badgeVariants({ variant }), props.class)">
+  <span
+    data-slot="badge"
+    :class="cn(badgeVariants({ variant }), props.class)"
+  >
     <slot />
   </span>
 </template>

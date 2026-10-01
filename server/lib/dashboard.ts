@@ -14,7 +14,9 @@ const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
 
 function startOfWeek(date: Date) {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+
   return d;
 }
 
@@ -28,10 +30,13 @@ async function weeklySignups() {
     week: new Date(firstWeek.getTime() + i * 7 * DAY_MS).toISOString(),
     count: 0,
   }));
+
   for (const { createdAt } of rows) {
     const index = Math.floor((startOfWeek(createdAt).getTime() - firstWeek.getTime()) / (7 * DAY_MS));
+
     if (weeks[index]) weeks[index].count++;
   }
+
   return weeks;
 }
 
@@ -53,9 +58,11 @@ async function activeOrganization(userId: string, organizationId: string | null)
     .where(and(eq(schema.member.userId, userId), eq(schema.member.organizationId, organizationId)))
     .limit(1);
   const org = rows[0];
+
   if (!org) return null;
 
   let pendingInvitations: number | null = null;
+
   if (isOwner(org.role)) {
     const [pending] = await db
       .select({ n: count() })
@@ -67,6 +74,7 @@ async function activeOrganization(userId: string, organizationId: string | null)
           gte(schema.invitation.expiresAt, new Date()),
         ),
       );
+
     pendingInvitations = pending?.n ?? 0;
   }
 
@@ -84,6 +92,7 @@ async function activeOrganization(userId: string, organizationId: string | null)
 async function accessibleApps(userId: string, organizationId: string | null) {
   if (!organizationId) return [];
   const access = await Promise.all(APP_IDS.map(async (id) => ({ id, orgs: await effectiveAppAccess(userId, id) })));
+
   return access
     .filter((a) => a.orgs[organizationId])
     .map((a) => ({ id: a.id, label: APPS[a.id].label, url: APPS[a.id].url, permissions: a.orgs[organizationId]! }));
@@ -94,14 +103,20 @@ async function adminOverview() {
   const staleBefore = daysAgo(STALE_INVITATION_DAYS);
   const [[orgs], [users], [banned], [invitations], appRows, signups, activity] = await Promise.all([
     db
-      .select({ n: count(), recent: sql<number>`count(*) filter (where ${schema.organization.createdAt} >= ${since})::int` })
+      .select({
+        n: count(),
+        recent: sql<number>`count(*) filter (where ${schema.organization.createdAt} >= ${since})::int`,
+      })
       .from(schema.organization),
     db
       .select({ n: count(), recent: sql<number>`count(*) filter (where ${schema.user.createdAt} >= ${since})::int` })
       .from(schema.user),
     db.select({ n: count() }).from(schema.user).where(eq(schema.user.banned, true)),
     db
-      .select({ n: count(), stale: sql<number>`count(*) filter (where ${schema.invitation.createdAt} < ${staleBefore})::int` })
+      .select({
+        n: count(),
+        stale: sql<number>`count(*) filter (where ${schema.invitation.createdAt} < ${staleBefore})::int`,
+      })
       .from(schema.invitation)
       .where(and(eq(schema.invitation.status, "pending"), gte(schema.invitation.expiresAt, new Date()))),
     Promise.all(
@@ -110,6 +125,7 @@ async function adminOverview() {
           .select({ n: count() })
           .from(schema.organization)
           .where(sql`${id} = any(${schema.organization.apps})`);
+
         return { id, label: APPS[id].label, organizations: row?.n ?? 0 };
       }),
     ),
@@ -150,5 +166,6 @@ export async function buildDashboard(userId: string, isAdmin: boolean, activeOrg
     accessibleApps(userId, activeOrganizationId),
     isAdmin ? adminOverview() : Promise.resolve(null),
   ]);
+
   return { organization, apps, admin };
 }

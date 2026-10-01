@@ -13,6 +13,7 @@ export async function impersonatorOf(sessionId: string | undefined): Promise<str
     .from(schema.session)
     .where(eq(schema.session.id, sessionId))
     .limit(1);
+
   return row?.impersonatedBy ?? null;
 }
 
@@ -25,6 +26,7 @@ export const impersonationClaim = () =>
           accessToken: async ({ user, sessionId }) => {
             if (!user) return {};
             const admin = await impersonatorOf(sessionId);
+
             return admin ? { [IMPERSONATED_BY_CLAIM]: admin } : {};
           },
         },
@@ -35,9 +37,12 @@ export const impersonationClaim = () =>
 export async function stripOfflineAccessWhenImpersonating(ctx: HookContext) {
   if (ctx.path !== "/oauth2/authorize") return;
   const scope = typeof ctx.query?.scope === "string" ? ctx.query.scope : undefined;
+
   if (!scope?.split(" ").includes("offline_access")) return;
   const session = await getSessionFromCtx(ctx);
+
   if (!(session?.session as { impersonatedBy?: string | null } | undefined)?.impersonatedBy) return;
+
   return {
     context: {
       ...ctx,

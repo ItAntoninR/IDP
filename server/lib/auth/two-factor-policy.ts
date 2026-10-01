@@ -25,6 +25,7 @@ export async function twoFactorStatus(userId: string) {
       .limit(1),
     organizationsRequiringTwoFactor(userId),
   ]);
+
   return {
     enabled: user?.totp === true || user?.passkey === true,
     totp: user?.totp === true,
@@ -36,12 +37,14 @@ export async function twoFactorStatus(userId: string) {
 export async function refuseMagicLinkWithTwoFactor(ctx: HookContext) {
   if (ctx.path !== "/sign-in/magic-link") return;
   const email = typeof ctx.body?.email === "string" ? ctx.body.email.toLowerCase() : null;
+
   if (!email) return;
   const [user] = await db
     .select({ id: schema.user.id, totp: schema.user.twoFactorEnabled, passkey: schema.user.hasPasskey })
     .from(schema.user)
     .where(sql`lower(${schema.user.email}) = ${email}`)
     .limit(1);
+
   if (!user) return;
   if (user.totp || user.passkey || (await organizationsRequiringTwoFactor(user.id)).length) {
     throw new APIError("FORBIDDEN", {
@@ -60,6 +63,7 @@ export const twoFactorTokenGuard = () =>
           accessToken: async ({ user, sessionId }) => {
             if (!user) return {};
             const status = await twoFactorStatus(user.id);
+
             if (status.enabled || !status.requiredBy.length) return {};
             if (await impersonatorOf(sessionId)) return {};
             throw new APIError("FORBIDDEN", {
@@ -76,13 +80,19 @@ export async function syncHasPasskey(ctx: HookContext) {
   if (ctx.path !== "/passkey/verify-registration" && ctx.path !== "/passkey/delete-passkey") return;
   if (ctx.context.returned instanceof Error) return;
   const user = (await getSessionFromCtx(ctx))?.user;
+
   if (!user) return;
   const [row] = await db.select({ n: count() }).from(schema.passkey).where(eq(schema.passkey.userId, user.id));
-  await db.update(schema.user).set({ hasPasskey: (row?.n ?? 0) > 0 }).where(eq(schema.user.id, user.id));
+
+  await db
+    .update(schema.user)
+    .set({ hasPasskey: (row?.n ?? 0) > 0 })
+    .where(eq(schema.user.id, user.id));
   const added = ctx.path === "/passkey/verify-registration";
   const returned = ctx.context.returned as { id?: string; name?: string | null } | undefined;
   const name = added ? returned?.name : null;
   const passkeyId = added ? returned?.id : (ctx.body as { id?: string } | undefined)?.id;
+
   alertOnPasskeyChange(user.email, added ? "added" : "removed", name);
   await auditPasskeyChange(user.id, added ? "added" : "removed", { name, passkeyId }, ctx as never);
 }
@@ -91,6 +101,7 @@ const USER_VERIFIED = 0x04;
 
 export function userVerifiedFlag(authenticatorData: string): boolean {
   const bytes = Buffer.from(authenticatorData, "base64url");
+
   return bytes.length > 32 && (bytes[32]! & USER_VERIFIED) !== 0;
 }
 
@@ -98,6 +109,7 @@ export function requirePasskeyUserVerification(ctx: HookContext) {
   if (ctx.path !== "/passkey/verify-authentication") return;
   const response = (ctx.body as { response?: { response?: { authenticatorData?: unknown } } } | undefined)?.response;
   const data = response?.response?.authenticatorData;
+
   if (typeof data !== "string" || !userVerifiedFlag(data)) {
     throw new APIError("UNAUTHORIZED", {
       code: "PASSKEY_USER_VERIFICATION_REQUIRED",

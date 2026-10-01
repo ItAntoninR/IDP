@@ -13,6 +13,7 @@ export function useAccountContext() {
 
   async function refresh() {
     context.value = await $fetch<AccountContext>("/api/account/context");
+
     return context.value;
   }
 
@@ -20,7 +21,9 @@ export function useAccountContext() {
 
   async function switchOrganization(organizationId: string) {
     const res = await authClient.organization.setActive({ organizationId });
+
     if (res.error) throw res.error;
+
     return refresh();
   }
 

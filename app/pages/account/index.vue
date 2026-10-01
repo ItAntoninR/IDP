@@ -9,12 +9,25 @@ const { accounts, load } = useLinkedAccounts();
 </script>
 
 <template>
-  <PageLoader v-if="!session.data || !accounts" />
-  <template v-else>
-    <PageHeader title="Profil" description="Vos informations personnelles et les comptes que vous utilisez pour vous connecter." />
-    <AccountProfileCard />
-    <AccountLinkedAccountsCard :accounts="accounts" @changed="load" />
-    <AccountOrganizationsCard />
-    <AccountDeleteAccountCard />
-  </template>
+  <div class="space-y-6">
+    <PageLoader v-if="!session.data || !accounts" />
+
+    <template v-else>
+      <PageHeader
+        title="Profil"
+        description="Vos informations personnelles et les comptes que vous utilisez pour vous connecter."
+      />
+
+      <AccountProfileCard />
+
+      <AccountLinkedAccountsCard
+        :accounts="accounts"
+        @changed="load"
+      />
+
+      <AccountOrganizationsCard />
+
+      <AccountDeleteAccountCard />
+    </template>
+  </div>
 </template>

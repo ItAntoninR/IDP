@@ -11,7 +11,11 @@ const forwarded = useForwardProps(delegatedProps);
 </script>
 
 <template>
-  <DropdownMenuTrigger data-slot="dropdown-menu-trigger" v-bind="forwarded" :class="cn('', props.class)">
+  <DropdownMenuTrigger
+    data-slot="dropdown-menu-trigger"
+    v-bind="forwarded"
+    :class="cn('', props.class)"
+  >
     <slot />
   </DropdownMenuTrigger>
 </template>

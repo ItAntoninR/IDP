@@ -1,15 +1,5 @@
 import { relations } from "drizzle-orm";
-import {
-  pgTable,
-  text,
-  bigint,
-  timestamp,
-  boolean,
-  integer,
-  jsonb,
-  index,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, bigint, timestamp, boolean, integer, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -116,9 +106,7 @@ export const organizationRole = pgTable(
     role: text("role").notNull(),
     permission: text("permission").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").$onUpdate(
-      () => /* @__PURE__ */ new Date(),
-    ),
+    updatedAt: timestamp("updated_at").$onUpdate(() => /* @__PURE__ */ new Date()),
   },
   (table) => [
     index("organizationRole_organizationId_idx").on(table.organizationId),
@@ -139,10 +127,7 @@ export const member = pgTable(
     role: text("role").default("member").notNull(),
     createdAt: timestamp("created_at").notNull(),
   },
-  (table) => [
-    index("member_organizationId_idx").on(table.organizationId),
-    index("member_userId_idx").on(table.userId),
-  ],
+  (table) => [index("member_organizationId_idx").on(table.organizationId), index("member_userId_idx").on(table.userId)],
 );
 
 export const invitation = pgTable(
@@ -189,9 +174,7 @@ export const oauthClient = pgTable(
     enableEndSession: boolean("enable_end_session"),
     subjectType: text("subject_type"),
     scopes: text("scopes").array(),
-    clientCredentialsScopes: text("client_credentials_scopes")
-      .array()
-      .default([]),
+    clientCredentialsScopes: text("client_credentials_scopes").array().default([]),
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at"),
     updatedAt: timestamp("updated_at"),
@@ -207,9 +190,7 @@ export const oauthClient = pgTable(
     redirectUris: text("redirect_uris").array().notNull(),
     postLogoutRedirectUris: text("post_logout_redirect_uris").array(),
     backchannelLogoutUri: text("backchannel_logout_uri"),
-    backchannelLogoutSessionRequired: boolean(
-      "backchannel_logout_session_required",
-    ),
+    backchannelLogoutSessionRequired: boolean("backchannel_logout_session_required"),
     tokenEndpointAuthMethod: text("token_endpoint_auth_method"),
     applicationType: text("application_type"),
     jwks: text("jwks"),
@@ -234,9 +215,7 @@ export const oauthResource = pgTable("oauth_resource", {
   signingKeyId: text("signing_key_id"),
   allowedScopes: text("allowed_scopes").array(),
   customClaims: jsonb("custom_claims"),
-  dpopBoundAccessTokensRequired: boolean(
-    "dpop_bound_access_tokens_required",
-  ).default(false),
+  dpopBoundAccessTokensRequired: boolean("dpop_bound_access_tokens_required").default(false),
   disabled: boolean("disabled").default(false),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
@@ -258,10 +237,7 @@ export const oauthClientResource = pgTable(
     createdAt: timestamp("created_at"),
   },
   (table) => [
-    uniqueIndex("oauthClientResource_clientId_resourceId_uidx").on(
-      table.clientId,
-      table.resourceId,
-    ),
+    uniqueIndex("oauthClientResource_clientId_resourceId_uidx").on(table.clientId, table.resourceId),
     index("oauthClientResource_clientId_idx").on(table.clientId),
     index("oauthClientResource_resourceId_idx").on(table.resourceId),
   ],
@@ -299,9 +275,7 @@ export const oauthRefreshToken = pgTable(
     index("oauthRefreshToken_clientId_idx").on(table.clientId),
     index("oauthRefreshToken_sessionId_idx").on(table.sessionId),
     index("oauthRefreshToken_userId_idx").on(table.userId),
-    index("oauthRefreshToken_authorizationCodeId_idx").on(
-      table.authorizationCodeId,
-    ),
+    index("oauthRefreshToken_authorizationCodeId_idx").on(table.authorizationCodeId),
   ],
 );
 
@@ -334,9 +308,7 @@ export const oauthAccessToken = pgTable(
     index("oauthAccessToken_clientId_idx").on(table.clientId),
     index("oauthAccessToken_sessionId_idx").on(table.sessionId),
     index("oauthAccessToken_userId_idx").on(table.userId),
-    index("oauthAccessToken_authorizationCodeId_idx").on(
-      table.authorizationCodeId,
-    ),
+    index("oauthAccessToken_authorizationCodeId_idx").on(table.authorizationCodeId),
     index("oauthAccessToken_refreshId_idx").on(table.refreshId),
   ],
 );
@@ -356,10 +328,7 @@ export const oauthConsent = pgTable(
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
   },
-  (table) => [
-    index("oauthConsent_clientId_idx").on(table.clientId),
-    index("oauthConsent_userId_idx").on(table.userId),
-  ],
+  (table) => [index("oauthConsent_clientId_idx").on(table.clientId), index("oauthConsent_userId_idx").on(table.userId)],
 );
 
 export const oauthClientAssertion = pgTable("oauth_client_assertion", {
@@ -380,10 +349,7 @@ export const twoFactor = pgTable(
     failedVerificationCount: integer("failed_verification_count").default(0),
     lockedUntil: timestamp("locked_until"),
   },
-  (table) => [
-    index("twoFactor_secret_idx").on(table.secret),
-    index("twoFactor_userId_idx").on(table.userId),
-  ],
+  (table) => [index("twoFactor_secret_idx").on(table.secret), index("twoFactor_userId_idx").on(table.userId)],
 );
 
 export const passkey = pgTable(
@@ -403,10 +369,7 @@ export const passkey = pgTable(
     createdAt: timestamp("created_at"),
     aaguid: text("aaguid"),
   },
-  (table) => [
-    index("passkey_userId_idx").on(table.userId),
-    index("passkey_credentialID_idx").on(table.credentialID),
-  ],
+  (table) => [index("passkey_userId_idx").on(table.userId), index("passkey_credentialID_idx").on(table.credentialID)],
 );
 
 export const rateLimit = pgTable("rate_limit", {
@@ -451,15 +414,12 @@ export const organizationRelations = relations(organization, ({ many }) => ({
   invitations: many(invitation),
 }));
 
-export const organizationRoleRelations = relations(
-  organizationRole,
-  ({ one }) => ({
-    organization: one(organization, {
-      fields: [organizationRole.organizationId],
-      references: [organization.id],
-    }),
+export const organizationRoleRelations = relations(organizationRole, ({ one }) => ({
+  organization: one(organization, {
+    fields: [organizationRole.organizationId],
+    references: [organization.id],
   }),
-);
+}));
 
 export const memberRelations = relations(member, ({ one }) => ({
   organization: one(organization, {
@@ -498,60 +458,51 @@ export const oauthResourceRelations = relations(oauthResource, ({ many }) => ({
   oauthClientResources: many(oauthClientResource),
 }));
 
-export const oauthClientResourceRelations = relations(
-  oauthClientResource,
-  ({ one }) => ({
-    oauthClient: one(oauthClient, {
-      fields: [oauthClientResource.clientId],
-      references: [oauthClient.clientId],
-    }),
-    oauthResource: one(oauthResource, {
-      fields: [oauthClientResource.resourceId],
-      references: [oauthResource.identifier],
-    }),
+export const oauthClientResourceRelations = relations(oauthClientResource, ({ one }) => ({
+  oauthClient: one(oauthClient, {
+    fields: [oauthClientResource.clientId],
+    references: [oauthClient.clientId],
   }),
-);
+  oauthResource: one(oauthResource, {
+    fields: [oauthClientResource.resourceId],
+    references: [oauthResource.identifier],
+  }),
+}));
 
-export const oauthRefreshTokenRelations = relations(
-  oauthRefreshToken,
-  ({ one, many }) => ({
-    oauthClient: one(oauthClient, {
-      fields: [oauthRefreshToken.clientId],
-      references: [oauthClient.clientId],
-    }),
-    session: one(session, {
-      fields: [oauthRefreshToken.sessionId],
-      references: [session.id],
-    }),
-    user: one(user, {
-      fields: [oauthRefreshToken.userId],
-      references: [user.id],
-    }),
-    oauthAccessTokens: many(oauthAccessToken),
+export const oauthRefreshTokenRelations = relations(oauthRefreshToken, ({ one, many }) => ({
+  oauthClient: one(oauthClient, {
+    fields: [oauthRefreshToken.clientId],
+    references: [oauthClient.clientId],
   }),
-);
+  session: one(session, {
+    fields: [oauthRefreshToken.sessionId],
+    references: [session.id],
+  }),
+  user: one(user, {
+    fields: [oauthRefreshToken.userId],
+    references: [user.id],
+  }),
+  oauthAccessTokens: many(oauthAccessToken),
+}));
 
-export const oauthAccessTokenRelations = relations(
-  oauthAccessToken,
-  ({ one }) => ({
-    oauthClient: one(oauthClient, {
-      fields: [oauthAccessToken.clientId],
-      references: [oauthClient.clientId],
-    }),
-    session: one(session, {
-      fields: [oauthAccessToken.sessionId],
-      references: [session.id],
-    }),
-    user: one(user, {
-      fields: [oauthAccessToken.userId],
-      references: [user.id],
-    }),
-    oauthRefreshToken: one(oauthRefreshToken, {
-      fields: [oauthAccessToken.refreshId],
-      references: [oauthRefreshToken.id],
-    }),
+export const oauthAccessTokenRelations = relations(oauthAccessToken, ({ one }) => ({
+  oauthClient: one(oauthClient, {
+    fields: [oauthAccessToken.clientId],
+    references: [oauthClient.clientId],
   }),
-);
+  session: one(session, {
+    fields: [oauthAccessToken.sessionId],
+    references: [session.id],
+  }),
+  user: one(user, {
+    fields: [oauthAccessToken.userId],
+    references: [user.id],
+  }),
+  oauthRefreshToken: one(oauthRefreshToken, {
+    fields: [oauthAccessToken.refreshId],
+    references: [oauthRefreshToken.id],
+  }),
+}));
 
 export const oauthConsentRelations = relations(oauthConsent, ({ one }) => ({
   oauthClient: one(oauthClient, {

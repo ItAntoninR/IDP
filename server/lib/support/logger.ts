@@ -10,11 +10,14 @@ export function redact(value: unknown, depth = 0): unknown {
   if (value instanceof Error) {
     return { name: value.name, message: value.message };
   }
+
   if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
   const out: Record<string, unknown> = {};
+
   for (const [k, v] of Object.entries(value)) {
     out[k] = SENSITIVE.test(k) ? "[redacted]" : redact(v, depth + 1);
   }
+
   return out;
 }
 
@@ -26,6 +29,7 @@ function write(level: Level, msg: string, meta?: Record<string, unknown>) {
     msg,
     ...(meta ? (redact(meta) as object) : {}),
   });
+
   if (level === "error" || level === "warn") process.stderr.write(line + "\n");
   else process.stdout.write(line + "\n");
 }

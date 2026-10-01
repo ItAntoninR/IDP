@@ -38,6 +38,7 @@ watch(
   async (userId) => {
     if (!userId || wrongAccount.value) return;
     const res = await authClient.organization.getInvitation({ query: { id } });
+
     if (res.error) error.value = errorMessage(res.error);
     else invitation.value = res.data as unknown as InvitationDetails;
   },
@@ -48,6 +49,7 @@ async function sendMagicLink() {
   error.value = "";
   loading.value = true;
   const res = await authClient.signIn.magicLink({ email, callbackURL: returnTo, errorCallbackURL: returnTo });
+
   loading.value = false;
   if (res.error) return (error.value = errorMessage(res.error));
   mode.value = "sent";
@@ -56,7 +58,13 @@ async function sendMagicLink() {
 async function signUp() {
   error.value = "";
   loading.value = true;
-  const res = await authClient.signUp.email({ email, password: password.value, name: name.value, callbackURL: returnTo });
+  const res = await authClient.signUp.email({
+    email,
+    password: password.value,
+    name: name.value,
+    callbackURL: returnTo,
+  });
+
   loading.value = false;
   if (res.error) return (error.value = errorMessage(res.error));
   mode.value = "sent";
@@ -66,17 +74,24 @@ async function accept() {
   error.value = "";
   loading.value = true;
   const res = await authClient.organization.acceptInvitation({ invitationId: id });
+
   if (res.error) {
     loading.value = false;
+
     return (error.value = errorMessage(res.error));
   }
+
   const organizationId = res.data?.member.organizationId ?? invitation.value?.organizationId;
+
   if (organizationId) await authClient.organization.setActive({ organizationId });
   const apps = (await getMyOrganizations()).find((o) => o.id === organizationId)?.apps ?? [];
+
   if (apps.length === 1) {
     window.location.href = apps[0]!.url;
+
     return;
   }
+
   loading.value = false;
   joinedApps.value = apps;
 }
@@ -95,10 +110,13 @@ async function switchAccount() {
 
 <template>
   <PageLoader v-if="session.isPending" />
+
   <AuthCard
     v-else
     title="Invitation"
-    :description="invitation ? `Rejoindre ${invitation.organizationName}` : 'Vous avez été invité à rejoindre une organisation.'"
+    :description="
+      invitation ? `Rejoindre ${invitation.organizationName}` : 'Vous avez été invité à rejoindre une organisation.'
+    "
   >
     <FormAlert :message="error" />
 
@@ -108,22 +126,62 @@ async function switchAccount() {
         tone="success"
         :message="`Un email vient d'être envoyé à ${email}. Cliquez sur le lien qu'il contient pour revenir ici et accepter l'invitation.`"
       />
+
       <template v-else>
-        <FormField :model-value="email" label="Email" type="email" disabled />
+        <FormField
+          :model-value="email"
+          label="Email"
+          type="email"
+          disabled
+        />
+
         <template v-if="mode === 'choose'">
-          <Button class="w-full" :disabled="loading" @click="sendMagicLink">Recevoir un lien de connexion</Button>
+          <Button
+            class="w-full"
+            :disabled="loading"
+            @click="sendMagicLink"
+          >
+            Recevoir un lien de connexion
+          </Button>
+
           <div class="text-muted-foreground flex items-center gap-3 text-xs">
-            <Separator class="flex-1" /> ou <Separator class="flex-1" />
+            <Separator class="flex-1" />
+
+            ou
+            <Separator class="flex-1" />
           </div>
+
           <div class="grid gap-2 sm:grid-cols-2">
-            <Button variant="outline" @click="mode = 'password'">Créer un mot de passe</Button>
-            <Button variant="outline" as-child>
-              <NuxtLink :to="{ path: '/sign-in', query: { email, callbackURL: returnTo } }">J'ai déjà un compte</NuxtLink>
+            <Button
+              variant="outline"
+              @click="mode = 'password'"
+            >
+              Créer un mot de passe
+            </Button>
+
+            <Button
+              variant="outline"
+              as-child
+            >
+              <NuxtLink :to="{ path: '/sign-in', query: { email, callbackURL: returnTo } }">
+                J'ai déjà un compte
+              </NuxtLink>
             </Button>
           </div>
         </template>
-        <form v-else class="space-y-4" @submit.prevent="signUp">
-          <FormField v-model="name" label="Nom" autocomplete="name" required />
+
+        <form
+          v-else
+          class="space-y-4"
+          @submit.prevent="signUp"
+        >
+          <FormField
+            v-model="name"
+            label="Nom"
+            autocomplete="name"
+            required
+          />
+
           <FormField
             v-model="password"
             label="Mot de passe"
@@ -133,8 +191,23 @@ async function switchAccount() {
             required
             hint="10 caractères minimum."
           />
-          <Button type="submit" class="w-full" :disabled="loading">Créer mon compte</Button>
-          <Button type="button" variant="ghost" class="w-full" @click="mode = 'choose'">Retour</Button>
+
+          <Button
+            type="submit"
+            class="w-full"
+            :disabled="loading"
+          >
+            Créer mon compte
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            class="w-full"
+            @click="mode = 'choose'"
+          >
+            Retour
+          </Button>
         </form>
       </template>
     </template>
@@ -143,28 +216,69 @@ async function switchAccount() {
       <FormAlert
         :message="`Cette invitation a été envoyée à ${email}, mais vous êtes connecté avec ${session.data.user.email}.`"
       />
-      <Button variant="outline" class="w-full" @click="switchAccount">Changer de compte</Button>
+
+      <Button
+        variant="outline"
+        class="w-full"
+        @click="switchAccount"
+      >
+        Changer de compte
+      </Button>
     </template>
 
     <template v-else-if="joinedApps">
-      <FormAlert tone="success" message="Bienvenue ! Vous faites maintenant partie de l'organisation." />
-      <div v-if="joinedApps.length" class="grid gap-2">
-        <Button v-for="app in joinedApps" :key="app.id" as-child class="w-full">
+      <FormAlert
+        tone="success"
+        message="Bienvenue ! Vous faites maintenant partie de l'organisation."
+      />
+
+      <div
+        v-if="joinedApps.length"
+        class="grid gap-2"
+      >
+        <Button
+          v-for="app in joinedApps"
+          :key="app.id"
+          as-child
+          class="w-full"
+        >
           <a :href="app.url">Ouvrir {{ app.label }}</a>
         </Button>
       </div>
-      <Button v-else as-child class="w-full"><NuxtLink to="/">Accéder à mon espace</NuxtLink></Button>
+
+      <Button
+        v-else
+        as-child
+        class="w-full"
+      >
+        <NuxtLink to="/">Accéder à mon espace</NuxtLink>
+      </Button>
     </template>
 
     <template v-else-if="invitation">
       <p class="text-muted-foreground text-sm">
         {{ invitation.inviterEmail ? `${invitation.inviterEmail} vous invite` : "Vous êtes invité" }} à rejoindre
-        <strong class="text-foreground">{{ invitation.organizationName }}</strong> en tant que
-        <strong class="text-foreground">{{ roleLabel(invitation.role) }}</strong>.
+        <strong class="text-foreground">{{ invitation.organizationName }}</strong>
+        en tant que
+        <strong class="text-foreground">{{ roleLabel(invitation.role) }}</strong>
+        .
       </p>
+
       <div class="grid gap-2 sm:grid-cols-2">
-        <Button :disabled="loading" @click="accept">Accepter</Button>
-        <Button variant="outline" :disabled="loading" @click="reject">Refuser</Button>
+        <Button
+          :disabled="loading"
+          @click="accept"
+        >
+          Accepter
+        </Button>
+
+        <Button
+          variant="outline"
+          :disabled="loading"
+          @click="reject"
+        >
+          Refuser
+        </Button>
       </div>
     </template>
 

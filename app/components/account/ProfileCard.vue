@@ -10,6 +10,7 @@ const loading = ref(false);
 async function save() {
   loading.value = true;
   const res = await authClient.updateUser({ name: name.value });
+
   loading.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
   toast.success("Profil enregistré.");
@@ -19,11 +20,32 @@ async function save() {
 <template>
   <Card>
     <CardHeader><CardTitle>Profil</CardTitle></CardHeader>
+
     <CardContent>
-      <form class="grid gap-4 sm:max-w-md" @submit.prevent="save">
-        <FormField :model-value="session.data?.user.email ?? ''" label="Email" disabled />
-        <FormField v-model="name" label="Nom" required />
-        <div><Button type="submit" :disabled="loading">Enregistrer</Button></div>
+      <form
+        class="grid gap-4 sm:max-w-md"
+        @submit.prevent="save"
+      >
+        <FormField
+          :model-value="session.data?.user.email ?? ''"
+          label="Email"
+          disabled
+        />
+
+        <FormField
+          v-model="name"
+          label="Nom"
+          required
+        />
+
+        <div>
+          <Button
+            type="submit"
+            :disabled="loading"
+          >
+            Enregistrer
+          </Button>
+        </div>
       </form>
     </CardContent>
   </Card>

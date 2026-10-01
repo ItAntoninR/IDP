@@ -26,12 +26,18 @@ async function submit() {
   error.value = "";
   loading.value = true;
   const body = { code: code.value.replace(/\s/g, ""), trustDevice: trustDevice.value };
-  const res = mode.value === "totp" ? await authClient.twoFactor.verifyTotp(body) : await authClient.twoFactor.verifyBackupCode(body);
+  const res =
+    mode.value === "totp"
+      ? await authClient.twoFactor.verifyTotp(body)
+      : await authClient.twoFactor.verifyBackupCode(body);
+
   if (res.error) {
     loading.value = false;
     code.value = "";
+
     return (error.value = errorMessage(res.error));
   }
+
   await goTo(target());
 }
 </script>
@@ -46,9 +52,14 @@ async function submit() {
     "
   >
     <FormAlert :message="error" />
-    <form class="space-y-5" @submit.prevent="submit">
+
+    <form
+      class="space-y-5"
+      @submit.prevent="submit"
+    >
       <div class="grid gap-2">
         <Label for="code">{{ mode === "totp" ? "Code" : "Code de secours" }}</Label>
+
         <Input
           id="code"
           v-model="code"
@@ -61,21 +72,42 @@ async function submit() {
           required
         />
       </div>
+
       <Label class="cursor-pointer font-normal">
         <Checkbox v-model="trustDevice" />
         Faire confiance à cet appareil pendant 30 jours
       </Label>
-      <Button type="submit" class="w-full" :disabled="loading || !code">
-        <LoaderCircle v-if="loading" class="animate-spin" />
+
+      <Button
+        type="submit"
+        class="w-full"
+        :disabled="loading || !code"
+      >
+        <LoaderCircle
+          v-if="loading"
+          class="animate-spin"
+        />
+
         <ShieldCheck v-else />
         {{ loading ? "Vérification…" : "Vérifier" }}
       </Button>
     </form>
+
     <div class="flex justify-between text-sm">
-      <button type="button" class="text-muted-foreground cursor-pointer hover:underline" @click="switchMode">
+      <button
+        type="button"
+        class="text-muted-foreground cursor-pointer hover:underline"
+        @click="switchMode"
+      >
         {{ mode === "totp" ? "Utiliser un code de secours" : "Utiliser l'application" }}
       </button>
-      <NuxtLink to="/sign-in" class="text-muted-foreground hover:underline">Retour</NuxtLink>
+
+      <NuxtLink
+        to="/sign-in"
+        class="text-muted-foreground hover:underline"
+      >
+        Retour
+      </NuxtLink>
     </div>
   </AuthCard>
 </template>

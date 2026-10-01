@@ -13,16 +13,20 @@ export function usePeoplePage(endpoint: MaybeRefOrGetter<string>, filter: Ref<Pe
 
   async function load() {
     const current = ++requestId;
+
     loading.value = true;
     try {
       const res = await $fetch<PeoplePage>(toValue(endpoint), {
         query: { q: q.value, filter: filter.value, limit: pageSize, offset: page.value * pageSize },
       });
+
       if (current !== requestId) return;
       if (!res.rows.length && page.value > 0) {
         page.value = Math.max(0, Math.ceil(res.total / pageSize) - 1);
+
         return;
       }
+
       data.value = res;
     } catch (e) {
       if (current === requestId) toast.error(errorMessage((e as { data?: unknown }).data ?? e));
@@ -39,10 +43,13 @@ export function usePeoplePage(endpoint: MaybeRefOrGetter<string>, filter: Ref<Pe
   watchDebounced(q, reload, { debounce: 250 });
   watch(filter, reload);
   watch(page, load);
-  watch(() => toValue(endpoint), () => {
-    data.value = null;
-    reload();
-  });
+  watch(
+    () => toValue(endpoint),
+    () => {
+      data.value = null;
+      reload();
+    },
+  );
   onMounted(load);
 
   return { q, page, data, loading, pageSize, load, reload };

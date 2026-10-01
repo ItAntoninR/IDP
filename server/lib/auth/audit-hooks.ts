@@ -20,11 +20,13 @@ const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 
 function auditableChanges(data: Record<string, unknown> | undefined) {
   if (!data || !("logo" in data)) return data ?? {};
+
   return { ...data, logo: data.logo ? "updated" : "removed" };
 }
 
 export async function auditAfterHook(ctx: HookContext) {
   const returned = ctx.context.returned as Record<string, unknown> | Error | undefined;
+
   if (returned instanceof Error) return;
   const path = ctx.path;
   const body = (ctx.body ?? {}) as Body;
@@ -44,6 +46,7 @@ export async function auditAfterHook(ctx: HookContext) {
     "/organization/update-role",
     "/organization/delete-role",
   ];
+
   if (!tracked.includes(path)) return;
 
   const session = await getSessionFromCtx(ctx);
@@ -84,14 +87,21 @@ export async function auditAfterHook(ctx: HookContext) {
         metadata: { changes: auditableChanges(body.data) },
       });
     case "/organization/invite-member": {
-      const invitation = returned as { id?: string; email?: string; role?: string; organizationId?: string } | undefined;
+      const invitation = returned as
+        { id?: string; email?: string; role?: string; organizationId?: string } | undefined;
+
       return log("invitation.create", {
         targetType: "invitation",
         targetId: invitation?.id,
         organizationId: invitation?.organizationId ?? organizationId,
-        metadata: { email: invitation?.email ?? body.email, role: invitation?.role ?? body.role, resend: body.resend ?? false },
+        metadata: {
+          email: invitation?.email ?? body.email,
+          role: invitation?.role ?? body.role,
+          resend: body.resend ?? false,
+        },
       });
     }
+
     case "/organization/update-member-role":
       return log("member.role.update", {
         targetType: "member",
@@ -101,6 +111,7 @@ export async function auditAfterHook(ctx: HookContext) {
       });
     case "/organization/remove-member": {
       const member = (returned as { member?: { id?: string; userId?: string } } | undefined)?.member;
+
       return log("member.remove", {
         targetType: "member",
         targetId: member?.id ?? str(body.memberIdOrEmail),
@@ -108,8 +119,10 @@ export async function auditAfterHook(ctx: HookContext) {
         metadata: { userId: member?.userId ?? null },
       });
     }
+
     case "/organization/leave": {
       const member = returned as { id?: string; organizationId?: string } | undefined;
+
       return log("member.leave", {
         targetType: "member",
         targetId: member?.id,
@@ -117,6 +130,7 @@ export async function auditAfterHook(ctx: HookContext) {
         metadata: { userId: actorId },
       });
     }
+
     case "/organization/create-role":
       return log("role.create", {
         targetType: "role",

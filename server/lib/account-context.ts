@@ -22,6 +22,7 @@ export async function userMemberships(userId: string) {
     .innerJoin(schema.organization, eq(schema.organization.id, schema.member.organizationId))
     .where(eq(schema.member.userId, userId))
     .orderBy(schema.organization.name);
+
   return rows.map(({ logoVersion: version, ...o }) => ({
     ...o,
     logoUrl: logoUrl(o.id, version),
@@ -32,6 +33,7 @@ export async function userMemberships(userId: string) {
 
 export async function organizationsGrantingApp(userId: string, appId: AppId) {
   const [memberships, access] = await Promise.all([userMemberships(userId), effectiveAppAccess(userId, appId)]);
+
   return memberships.filter((o) => access[o.id]);
 }
 
@@ -41,7 +43,12 @@ export async function canManageOrganization(headers: Headers, organizationId: st
       .hasPermission({ headers, body: { organizationId, permissions } as never })
       .then((r) => (r as { success?: boolean }).success === true)
       .catch(() => false);
-  const checks = await Promise.all([check({ member: ["update"] }), check({ invitation: ["create"] }), check({ ac: ["create"] })]);
+  const checks = await Promise.all([
+    check({ member: ["update"] }),
+    check({ invitation: ["create"] }),
+    check({ ac: ["create"] }),
+  ]);
+
   return checks.some(Boolean);
 }
 
@@ -53,6 +60,7 @@ export async function accountContext(
 ) {
   const [organizations, twoFactor] = await Promise.all([userMemberships(userId), twoFactorStatus(userId)]);
   const active = organizations.find((o) => o.id === activeOrganizationId) ?? null;
+
   return {
     impersonating,
     twoFactor,

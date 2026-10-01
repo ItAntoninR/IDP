@@ -10,6 +10,7 @@ export default defineNitroPlugin((nitro) => {
   const run = () => runRetentionOnce().catch((err) => logger.error("retention failed", { err }));
   const first = setTimeout(run, FIRST_RUN_DELAY_MS);
   const daily = setInterval(run, INTERVAL_MS);
+
   first.unref();
   daily.unref();
   nitro.hooks.hook("close", () => {

@@ -20,9 +20,11 @@ function askLeave(org: MyOrganization) {
 
 async function leave() {
   const org = target.value;
+
   if (!org) return;
   leaving.value = true;
   const res = await authClient.organization.leave({ organizationId: org.id });
+
   leaving.value = false;
   if (res.error) return toast.error(errorMessage(res.error));
   confirmOpen.value = false;
@@ -35,36 +37,58 @@ onMounted(load);
 </script>
 
 <template>
-  <Card v-if="context && context.organizations.length">
-    <CardHeader>
-      <CardTitle>Organisations</CardTitle>
-      <CardDescription>Les organisations dont vous êtes membre.</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <ul class="divide-y rounded-lg border">
-        <li v-for="org in context.organizations" :key="org.id" class="flex items-center gap-3 px-3 py-2.5">
-          <OrgLogo :name="org.name" :logo-url="org.logoUrl" class="size-8" />
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium">{{ org.name }}</p>
-            <p class="text-muted-foreground text-xs">{{ roleLabel(org.role) }}</p>
-          </div>
-          <Button variant="outline" size="sm" @click="askLeave(org)"><LogOut /> Quitter</Button>
-        </li>
-      </ul>
-    </CardContent>
-  </Card>
+  <div v-if="context && context.organizations.length">
+    <Card>
+      <CardHeader>
+        <CardTitle>Organisations</CardTitle>
 
-  <ConfirmDialog
-    v-model:open="confirmOpen"
-    :title="`Quitter ${target?.name ?? ''} ?`"
-    :description="
-      target && isOwner(target)
-        ? 'Vous perdrez l\'accès à ses applications. S\'il n\'y a pas d\'autre gérant, transférez d\'abord votre rôle depuis la page Personnes.'
-        : 'Vous perdrez immédiatement l\'accès à ses applications. Il faudra une nouvelle invitation pour revenir.'
-    "
-    confirm-label="Quitter"
-    destructive
-    :loading="leaving"
-    @confirm="leave"
-  />
+        <CardDescription>Les organisations dont vous êtes membre.</CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <ul class="divide-y rounded-lg border">
+          <li
+            v-for="org in context.organizations"
+            :key="org.id"
+            class="flex items-center gap-3 px-3 py-2.5"
+          >
+            <OrgLogo
+              :name="org.name"
+              :logo-url="org.logoUrl"
+              class="size-8"
+            />
+
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium">{{ org.name }}</p>
+
+              <p class="text-muted-foreground text-xs">{{ roleLabel(org.role) }}</p>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              @click="askLeave(org)"
+            >
+              <LogOut />
+              Quitter
+            </Button>
+          </li>
+        </ul>
+      </CardContent>
+    </Card>
+
+    <ConfirmDialog
+      v-model:open="confirmOpen"
+      :title="`Quitter ${target?.name ?? ''} ?`"
+      :description="
+        target && isOwner(target)
+          ? 'Vous perdrez l\'accès à ses applications. S\'il n\'y a pas d\'autre gérant, transférez d\'abord votre rôle depuis la page Personnes.'
+          : 'Vous perdrez immédiatement l\'accès à ses applications. Il faudra une nouvelle invitation pour revenir.'
+      "
+      confirm-label="Quitter"
+      destructive
+      :loading="leaving"
+      @confirm="leave"
+    />
+  </div>
 </template>
