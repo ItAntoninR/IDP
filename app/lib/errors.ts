@@ -75,6 +75,12 @@ const MESSAGES: Record<string, string> = {
   INVALID_LOGO: "Le logo doit être une image PNG, JPEG ou WebP.",
   LOGO_TOO_LARGE: "Le logo est trop lourd.",
   ORGANIZATION_FIELD_ADMIN_ONLY: "Seule notre équipe peut modifier ce champ.",
+  PAIRING_NOT_FOUND: "Ce code est inconnu ou a expiré. Relancez l'appairage depuis la machine.",
+  DATAHUB_NOT_ENABLED: "Cette organisation n'a pas accès au Data hub.",
+  NAME_REQUIRED: "Donnez un nom au connecteur.",
+  CONNECTOR_NOT_FOUND: "Ce connecteur n'existe pas.",
+  CONNECTOR_REVOKED: "Ce connecteur est déjà révoqué.",
+  NO_ACTIVE_ORGANIZATION: "Choisissez d'abord une organisation.",
 };
 
 export interface AppError {

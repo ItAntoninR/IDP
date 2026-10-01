@@ -7,6 +7,7 @@ import { refuseMagicLinkWithTwoFactor, requirePasskeyUserVerification, syncHasPa
 import { alertOnNewDevice, alertOnPasswordChange } from "./security-alerts";
 import { restrictApiDocsToAdmins } from "./api-docs";
 import { validateOrganizationProfile } from "../org-profile";
+import { requireResourceForMachineTokens } from "../connectors/token-guard";
 
 export const beforeHook = createAuthMiddleware(async (ctx) => {
   await restrictApiDocsToAdmins(ctx);
@@ -15,6 +16,7 @@ export const beforeHook = createAuthMiddleware(async (ctx) => {
   await enforceRoleCeiling(ctx);
   await refuseMagicLinkWithTwoFactor(ctx);
   requirePasskeyUserVerification(ctx);
+  requireResourceForMachineTokens(ctx);
 
   return stripOfflineAccessWhenImpersonating(ctx);
 });

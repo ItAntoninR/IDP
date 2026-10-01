@@ -3,6 +3,7 @@ export const RESOURCE_LABELS: Record<string, string> = {
   member: "Membres",
   invitation: "Invitations",
   ac: "Rôles",
+  connector: "Connecteurs",
   datahub: "Data hub",
   app: "App",
 };
@@ -12,7 +13,8 @@ const ACTION_LABELS: Record<string, Record<string, string>> = {
   member: { create: "Ajouter", update: "Changer les rôles", delete: "Retirer" },
   invitation: { create: "Inviter", cancel: "Annuler une invitation" },
   ac: { create: "Créer", read: "Consulter", update: "Modifier", delete: "Supprimer" },
-  datahub: { access: "Accès", export: "Export", admin: "Administration" },
+  connector: { create: "Créer / appairer", update: "Renommer", delete: "Révoquer" },
+  datahub: { access: "Accès", export: "Export", import: "Import", admin: "Administration" },
   app: { access: "Accès", admin: "Administration" },
 };
 
@@ -52,6 +54,10 @@ export const AUDIT_LABELS: Record<string, string> = {
   "user.export": "Export des données",
   "user.inactivity.kept": "Compte inactif conservé (seul gérant)",
   "archive.export": "Consultation d'une archive",
+  "connector.paired": "Appairage d'un connecteur",
+  "connector.pairing.denied": "Appairage refusé",
+  "connector.renamed": "Connecteur renommé",
+  "connector.revoked": "Connecteur révoqué",
 };
 
 export const formatDate = (value: string | Date | null | undefined) =>

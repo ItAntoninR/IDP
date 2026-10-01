@@ -29,6 +29,7 @@ import { alertOnTwoFactorChange, notifyPasswordChanged } from "./auth/security-a
 import { auditTwoFactorChange } from "./auth/security-audit";
 import { INVITATION_TTL_SECONDS, sendInvitation } from "./auth/invitations";
 import { buildAccessTokenClaims } from "./auth/access-claims";
+import { CONNECTOR_SCOPE } from "./connectors/connectors";
 import { APPS } from "./apps";
 import { hasGlobalRole } from "./support/roles";
 import { needsOrganizationSelection, organizationSelectionField } from "./auth/org-selection";
@@ -249,13 +250,14 @@ export const auth = betterAuth({
     oauthProvider({
       loginPage: "/sign-in",
       consentPage: "/consent",
-      scopes: ["openid", "profile", "email", "offline_access"],
+      scopes: ["openid", "profile", "email", "offline_access", CONNECTOR_SCOPE],
       resources: generatingSchema
         ? undefined
         : APP_IDS.map((id) => ({ identifier: APPS[id].resource, name: APPS[id].label })),
       resourceSeedMode: "merge",
       enforcePerClientResources: true,
       accessTokenExpiresIn: env.ACCESS_TOKEN_TTL_SECONDS,
+      m2mAccessTokenExpiresIn: env.ACCESS_TOKEN_TTL_SECONDS,
       allowDynamicClientRegistration: false,
       clientPrivileges: isAdminUser,
       resourcePrivileges: isAdminUser,

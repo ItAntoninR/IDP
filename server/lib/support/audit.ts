@@ -30,6 +30,10 @@ export const AUDIT_ACTIONS = [
   "user.export",
   "user.inactivity.kept",
   "archive.export",
+  "connector.paired",
+  "connector.pairing.denied",
+  "connector.renamed",
+  "connector.revoked",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

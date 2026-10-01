@@ -3,6 +3,7 @@ import {
   Archive,
   BookOpen,
   Building2,
+  Cable,
   Check,
   ChevronRight,
   ChevronsUpDown,
@@ -52,6 +53,7 @@ interface NavLink {
   label: string;
   icon: Component;
   external?: boolean;
+  home?: string;
   children?: { to: string; label: string; icon: Component }[];
 }
 
@@ -66,31 +68,47 @@ watch(
   },
 );
 
-function toggleGroup(to: string) {
-  if (expanded.value[to]) expanded.value[to] = false;
+function toggleGroup(link: NavLink) {
+  if (expanded.value[link.to]) expanded.value[link.to] = false;
   else {
-    expanded.value[to] = true;
-    navigateTo(to);
+    expanded.value[link.to] = true;
+    navigateTo(link.home ?? link.to);
   }
 }
+
+const organizationLinks = computed(() => {
+  const active = context.value?.active;
+
+  return [
+    ...(active?.canManage
+      ? [
+          { to: "/org", label: "Personnes", icon: Users },
+          { to: "/org/roles", label: "Rôles", icon: KeyRound },
+        ]
+      : []),
+    ...(active?.canManageConnectors ? [{ to: "/org/connectors", label: "Connecteurs", icon: Cable }] : []),
+    ...(active?.canManage
+      ? [
+          { to: "/org/activity", label: "Activité", icon: History },
+          { to: "/org/settings", label: "Paramètres", icon: Settings },
+        ]
+      : []),
+  ];
+});
 
 const sections = computed<{ label: string; links: NavLink[] }[]>(() => [
   {
     label: "",
     links: [
       { to: "/", label: "Tableau de bord", icon: LayoutDashboard },
-      ...(context.value?.active?.canManage
+      ...(organizationLinks.value.length
         ? [
             {
               to: "/org",
+              home: organizationLinks.value[0]!.to,
               label: "Organisation",
               icon: Building2,
-              children: [
-                { to: "/org", label: "Personnes", icon: Users },
-                { to: "/org/roles", label: "Rôles", icon: KeyRound },
-                { to: "/org/activity", label: "Activité", icon: History },
-                { to: "/org/settings", label: "Paramètres", icon: Settings },
-              ],
+              children: organizationLinks.value,
             },
           ]
         : []),
@@ -286,7 +304,7 @@ const initials = computed(() => {
                 class="text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm transition-colors hover:bg-black/[0.04]"
                 :class="{ '!text-foreground font-medium': inGroup(route.path, link.to) }"
                 :aria-expanded="expanded[link.to]"
-                @click="toggleGroup(link.to)"
+                @click="toggleGroup(link)"
               >
                 <component
                   :is="link.icon"

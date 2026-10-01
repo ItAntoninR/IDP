@@ -1,5 +1,5 @@
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { user } from "./auth-schema";
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { organization, user } from "./auth-schema";
 
 export const auditLog = pgTable(
   "audit_log",
@@ -54,4 +54,51 @@ export const knownDevice = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("known_device_user_hash_idx").on(t.userId, t.deviceHash)],
+);
+
+export interface ConnectorPublicKey {
+  kty: "EC";
+  crv: "P-256";
+  x: string;
+  y: string;
+  alg: "ES256";
+  use: "sig";
+  kid: string;
+}
+
+export const connector = pgTable(
+  "connector",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    oauthClientId: text("oauth_client_id").notNull().unique(),
+    name: text("name").notNull(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: text("revoked_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [index("connector_organization_idx").on(t.organizationId)],
+);
+
+export const connectorPairing = pgTable(
+  "connector_pairing",
+  {
+    id: text("id").primaryKey(),
+    deviceCodeHash: text("device_code_hash").notNull().unique(),
+    userCode: text("user_code").notNull().unique(),
+    publicKey: jsonb("public_key").$type<ConnectorPublicKey>().notNull(),
+    requestedName: text("requested_name"),
+    status: text("status").$type<"pending" | "approved" | "denied" | "consumed">().default("pending").notNull(),
+    pollInterval: integer("poll_interval").notNull(),
+    lastPolledAt: timestamp("last_polled_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    connectorId: text("connector_id").references(() => connector.id, { onDelete: "cascade" }),
+    decidedBy: text("decided_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("connector_pairing_expires_idx").on(t.expiresAt)],
 );

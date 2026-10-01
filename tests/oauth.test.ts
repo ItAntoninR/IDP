@@ -72,7 +72,7 @@ describe("access tokens", () => {
 
     expect(payload.aud).toContain(DATAHUB);
     expect(payload.aud).not.toContain(APP);
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "admin"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "admin"] });
     expect(payload[IMPERSONATED_BY_CLAIM]).toBeUndefined();
     expect(payload.exp! - payload.iat!).toBe(600);
   });
@@ -317,7 +317,7 @@ describe("access tokens", () => {
       referenceId: orgB.organizationId,
     });
 
-    expect(claims[ACCESS_CLAIM]).toEqual({ [orgB.organizationId]: ["access", "export", "admin"] });
+    expect(claims[ACCESS_CLAIM]).toEqual({ [orgB.organizationId]: ["access", "export", "import", "admin"] });
   });
 
   it("refreshes tokens with offline_access and recomputes the claim", async () => {
@@ -333,7 +333,7 @@ describe("access tokens", () => {
     expect(refreshed.status, JSON.stringify(refreshed.body)).toBe(200);
     const payload = await verifyJwt(refreshed.body.access_token, DATAHUB);
 
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "admin"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "admin"] });
   });
 
   it("publishes OIDC discovery with the configured issuer", async () => {
