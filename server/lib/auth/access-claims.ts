@@ -2,8 +2,15 @@ import { APIError } from "better-auth/api";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "../db/index";
 import { env } from "../env";
-import { appByResource } from "../apps";
-import { APP_PERMISSIONS, roles as staticRoles, type AppId } from "../../../shared/permissions";
+import { APPS, appByResource } from "../apps";
+import { CONNECTOR_METADATA_KEY, resolveConnectorForToken } from "../connectors/connectors";
+import {
+  APP_PERMISSIONS,
+  CONNECTOR_ACTION,
+  CONNECTOR_APP,
+  roles as staticRoles,
+  type AppId,
+} from "../../../shared/permissions";
 
 export const ACCESS_CLAIM = `${env.CLAIMS_NAMESPACE}/access`;
 
@@ -14,6 +21,8 @@ export const ORGANIZATION_CLAIM = `${env.CLAIMS_NAMESPACE}/org_id`;
 export const ORGANIZATION_NAME_CLAIM = `${env.CLAIMS_NAMESPACE}/org_name`;
 
 export const ORGANIZATION_COUNT_CLAIM = `${env.CLAIMS_NAMESPACE}/org_count`;
+
+export const CONNECTOR_CLAIM = `${env.CLAIMS_NAMESPACE}/connector_id`;
 
 export type AccessMap = Record<string, string[]>;
 
@@ -89,12 +98,67 @@ export async function effectiveAppAccess(userId: string, appId: AppId): Promise<
   return access;
 }
 
-export async function buildAccessTokenClaims(info: {
+interface TokenRequest {
   user?: { id: string; banned?: unknown } | null;
   resources?: string[];
   referenceId?: string;
-}): Promise<Record<string, unknown>> {
+  metadata?: Record<string, unknown>;
+}
+
+const connectorIdOf = (metadata: Record<string, unknown> | undefined) => {
+  const value = metadata?.[CONNECTOR_METADATA_KEY];
+
+  return typeof value === "string" && value ? value : null;
+};
+
+const CONNECTOR_REFUSALS = {
+  unknown: "Unknown connector",
+  revoked: "Connector is revoked",
+  app_disabled: "The organization no longer has access to this application",
+} as const;
+
+export async function buildConnectorClaims(connectorId: string, resources: string[] = []) {
+  if (resources.length !== 1 || resources[0] !== APPS[CONNECTOR_APP].resource) {
+    throw new APIError("BAD_REQUEST", {
+      error: "invalid_target",
+      error_description: "Connectors can only request the Data hub resource",
+    });
+  }
+
+  const binding = await resolveConnectorForToken(connectorId);
+
+  if (!binding.ok) {
+    throw new APIError("FORBIDDEN", { error: "access_denied", error_description: CONNECTOR_REFUSALS[binding.reason] });
+  }
+
+  return {
+    [ACCESS_CLAIM]: { [binding.organizationId]: [CONNECTOR_ACTION] },
+    [ORGANIZATION_CLAIM]: binding.organizationId,
+    [ORGANIZATION_NAME_CLAIM]: binding.organizationName,
+    [CONNECTOR_CLAIM]: binding.connectorId,
+  };
+}
+
+export async function buildAccessTokenClaims(info: TokenRequest): Promise<Record<string, unknown>> {
+  const connectorId = connectorIdOf(info.metadata);
+
+  if (connectorId) {
+    if (info.user) {
+      throw new APIError("FORBIDDEN", {
+        error: "access_denied",
+        error_description: "Connector clients cannot act for a user",
+      });
+    }
+
+    return buildConnectorClaims(connectorId, info.resources);
+  }
+
   if (!info.user) return {};
+
+  return buildUserClaims({ ...info, user: info.user });
+}
+
+async function buildUserClaims(info: TokenRequest & { user: NonNullable<TokenRequest["user"]> }) {
   if (info.user.banned === true) {
     throw new APIError("FORBIDDEN", { error: "access_denied", error_description: "User is banned" });
   }

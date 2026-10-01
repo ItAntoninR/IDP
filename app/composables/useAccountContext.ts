@@ -5,7 +5,7 @@ export interface AccountContext {
   impersonating: boolean;
   twoFactor: { enabled: boolean; totp: boolean; passkey: boolean; requiredBy: { id: string; name: string }[] };
   organizations: MyOrganization[];
-  active: (MyOrganization & { canManage: boolean }) | null;
+  active: (MyOrganization & { canManage: boolean; canManageConnectors: boolean }) | null;
 }
 
 export function useAccountContext() {

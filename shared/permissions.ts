@@ -1,7 +1,7 @@
 import { createAccessControl } from "better-auth/plugins/access";
 
 export const APP_PERMISSIONS = {
-  datahub: ["access", "export", "admin"],
+  datahub: ["access", "export", "import", "admin"],
   app: ["access", "admin"],
 } as const;
 
@@ -19,6 +19,7 @@ export const ORG_PERMISSIONS = {
   member: ["create", "update", "delete"],
   invitation: ["create", "cancel"],
   ac: ["create", "read", "update", "delete"],
+  connector: ["create", "update", "delete"],
 } as const;
 
 export const statement = {
@@ -33,7 +34,8 @@ export const owner = ac.newRole({
   member: ["create", "update", "delete"],
   invitation: ["create", "cancel"],
   ac: ["create", "read", "update", "delete"],
-  datahub: ["access", "export", "admin"],
+  connector: ["create", "update", "delete"],
+  datahub: ["access", "export", "import", "admin"],
   app: ["access", "admin"],
 });
 
@@ -44,6 +46,10 @@ export const member = ac.newRole({
 export const roles = { owner, member };
 
 export const STATIC_ROLES = Object.keys(roles) as (keyof typeof roles)[];
+
+export const CONNECTOR_APP: AppId = "datahub";
+
+export const CONNECTOR_ACTION = "import";
 
 export type PermissionMap = Partial<Record<string, string[]>>;
 

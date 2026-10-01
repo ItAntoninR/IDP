@@ -196,7 +196,17 @@ async function handleInactiveAccounts(now: Date) {
 
 export async function applyRetention(now = new Date()) {
   const purge = async <T>(query: Promise<T[]>) => (await query).length;
-  const [auditLog, knownDevices, archives, invitations, verifications, sessions, rateLimits] = await Promise.all([
+  const [
+    auditLog,
+    knownDevices,
+    archives,
+    invitations,
+    verifications,
+    sessions,
+    rateLimits,
+    connectorPairings,
+    clientAssertions,
+  ] = await Promise.all([
     purge(
       db
         .delete(schema.auditLog)
@@ -231,10 +241,33 @@ export async function applyRetention(now = new Date()) {
         .where(lt(schema.rateLimit.lastRequest, daysBefore(now, RETENTION.rateLimitDays).getTime()))
         .returning({ id: schema.rateLimit.id }),
     ),
+    purge(
+      db
+        .delete(schema.connectorPairing)
+        .where(lt(schema.connectorPairing.expiresAt, now))
+        .returning({ id: schema.connectorPairing.id }),
+    ),
+    purge(
+      db
+        .delete(schema.oauthClientAssertion)
+        .where(lt(schema.oauthClientAssertion.expiresAt, now))
+        .returning({ id: schema.oauthClientAssertion.id }),
+    ),
   ]);
   const accounts = await handleInactiveAccounts(now);
 
-  return { auditLog, knownDevices, archives, invitations, verifications, sessions, rateLimits, accounts };
+  return {
+    auditLog,
+    knownDevices,
+    archives,
+    invitations,
+    verifications,
+    sessions,
+    rateLimits,
+    connectorPairings,
+    clientAssertions,
+    accounts,
+  };
 }
 
 export async function runRetentionOnce(now = new Date()) {

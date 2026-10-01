@@ -164,7 +164,7 @@ describe("impersonation", () => {
     const payload = decodeJwt(token.body.access_token);
 
     expect(payload[IMPERSONATED_BY_CLAIM]).toBe(admin.id);
-    expect(payload[ACCESS_CLAIM]).toEqual({ [org.organizationId]: ["access", "export", "admin"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [org.organizationId]: ["access", "export", "import", "admin"] });
     expect(payload.sub).toBe(owner!.id);
 
     await adminAgent.post("/api/auth/admin/stop-impersonating").send({}).expect(200);
