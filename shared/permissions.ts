@@ -1,7 +1,7 @@
 import { createAccessControl } from "better-auth/plugins/access";
 
 export const APP_PERMISSIONS = {
-  datahub: ["access", "export", "import", "admin"],
+  datahub: ["access", "export", "import", "import-read", "admin"],
   app: ["access", "admin"],
 } as const;
 
@@ -35,7 +35,7 @@ export const owner = ac.newRole({
   invitation: ["create", "cancel"],
   ac: ["create", "read", "update", "delete"],
   connector: ["create", "update", "delete"],
-  datahub: ["access", "export", "import", "admin"],
+  datahub: ["access", "export", "import", "import-read", "admin"],
   app: ["access", "admin"],
 });
 

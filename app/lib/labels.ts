@@ -14,7 +14,13 @@ const ACTION_LABELS: Record<string, Record<string, string>> = {
   invitation: { create: "Inviter", cancel: "Annuler une invitation" },
   ac: { create: "Créer", read: "Consulter", update: "Modifier", delete: "Supprimer" },
   connector: { create: "Créer / appairer", update: "Renommer", delete: "Révoquer" },
-  datahub: { access: "Accès", export: "Export", import: "Import", admin: "Administration" },
+  datahub: {
+    access: "Accès",
+    export: "Export",
+    import: "Envoyer des imports",
+    "import-read": "Consulter les imports",
+    admin: "Administration",
+  },
   app: { access: "Accès", admin: "Administration" },
 };
 

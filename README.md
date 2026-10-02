@@ -233,7 +233,7 @@ Garanties :
 - **Pas d'accès, pas de jeton** : si aucune organisation ne donne `access` à l'application demandée, l'endpoint de jeton répond `403 access_denied` et n'émet rien. C'est vrai aussi au renouvellement : retirer un membre, changer un rôle, réduire les applications autorisées d'une organisation ou suspendre un utilisateur prend effet en une durée de vie de jeton d'accès.
 - **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé, sauf pour les connecteurs (voir [Connecteurs](#connecteurs)).
 - **Sessions d'impersonation** : jamais de jeton de renouvellement.
-- Catalogue des permissions par application : `datahub: access, export, import, admin` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)).
+- Catalogue des permissions par application : `datahub: access, export, import, import-read, admin` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)).
 
 ## Connecteurs
 
@@ -250,7 +250,7 @@ Un connecteur est une machine installée chez un client (sans personne au clavie
 ### Permissions
 
 - Ressource d'organisation `connector` : `create` (« Créer / appairer »), `update` (« Renommer »), `delete` (« Révoquer »). Le gérant les a par défaut ; il peut les donner à d'autres membres avec un rôle personnalisé (page Rôles).
-- Permission d'application `datahub:import` : c'est la seule que porte un jeton de connecteur. Le gérant l'a aussi, pour pouvoir importer à la main ; elle suit le plafond `apps` de l'organisation comme les autres permissions d'application.
+- Permission d'application `datahub:import` : c'est la seule que porte un jeton de connecteur. Le gérant l'a aussi, pour pouvoir importer à la main ; elle suit le plafond `apps` de l'organisation comme les autres permissions d'application. `datahub:import-read` (consulter l'historique et l'état des imports) est une permission distincte, jamais portée par un connecteur.
 - Aucun jeton n'est émis si le connecteur est révoqué, si l'organisation a été supprimée ou si elle n'a plus accès au Data hub (`403 access_denied`). Un connecteur ne peut jamais demander de jeton pour une autre ressource (`400 invalid_target`) ni d'autres scopes (`400 invalid_scope`).
 
 ### Contenu du jeton d'un connecteur

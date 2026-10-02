@@ -72,7 +72,7 @@ describe("access tokens", () => {
 
     expect(payload.aud).toContain(DATAHUB);
     expect(payload.aud).not.toContain(APP);
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "admin"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "import-read", "admin"] });
     expect(payload[IMPERSONATED_BY_CLAIM]).toBeUndefined();
     expect(payload.exp! - payload.iat!).toBe(600);
   });
@@ -179,6 +179,21 @@ describe("access tokens", () => {
     } else {
       expect(denied.location).toContain("error=");
     }
+  });
+
+  it("lets a custom role hold import-read without import", async () => {
+    const clients = await seedTestClients();
+    const { owner, organizationId } = await setupOrgWithOwner(["datahub"]);
+
+    await owner
+      .post("/api/auth/organization/create-role")
+      .send({ organizationId, role: "import-viewer", permission: { datahub: ["access", "import-read"] } })
+      .expect(200);
+    const viewer = await inviteAndJoin(owner, organizationId, "import-viewer");
+
+    const payload = decodeJwt((await getAccessToken(viewer.agent, clients.datahub)).body.access_token);
+
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import-read"] });
   });
 
   it("issues no token when no organization grants access", async () => {
@@ -317,7 +332,9 @@ describe("access tokens", () => {
       referenceId: orgB.organizationId,
     });
 
-    expect(claims[ACCESS_CLAIM]).toEqual({ [orgB.organizationId]: ["access", "export", "import", "admin"] });
+    expect(claims[ACCESS_CLAIM]).toEqual({
+      [orgB.organizationId]: ["access", "export", "import", "import-read", "admin"],
+    });
   });
 
   it("refreshes tokens with offline_access and recomputes the claim", async () => {
@@ -333,7 +350,7 @@ describe("access tokens", () => {
     expect(refreshed.status, JSON.stringify(refreshed.body)).toBe(200);
     const payload = await verifyJwt(refreshed.body.access_token, DATAHUB);
 
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "admin"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "import-read", "admin"] });
   });
 
   it("publishes OIDC discovery with the configured issuer", async () => {
