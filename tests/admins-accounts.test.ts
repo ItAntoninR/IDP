@@ -165,7 +165,7 @@ describe("impersonation", () => {
 
     expect(payload[IMPERSONATED_BY_CLAIM]).toBe(admin.id);
     expect(payload[ACCESS_CLAIM]).toEqual({
-      [org.organizationId]: ["access", "export", "import", "import-read", "admin"],
+      [org.organizationId]: ["access", "import", "import-read"],
     });
     expect(payload.sub).toBe(owner!.id);
 
@@ -206,7 +206,7 @@ describe("audit log", () => {
       .expect(200);
     await owner
       .post("/api/auth/organization/update-role")
-      .send({ organizationId, roleName: "analyst", data: { permission: { datahub: ["access", "export"] } } })
+      .send({ organizationId, roleName: "analyst", data: { permission: { datahub: ["access", "import-read"] } } })
       .expect(200);
 
     const member = await createUser();

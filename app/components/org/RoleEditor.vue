@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { normalizeRolePermissions } from "#shared/permissions";
 import type { DynamicRole } from "~/lib/org";
 import type { PermissionState } from "~/lib/types";
 
@@ -10,7 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>();
 
 const name = ref(props.initial?.role ?? "");
-const permission = ref<PermissionState>({ ...(props.initial?.permission ?? {}) });
+const permission = ref<PermissionState>(normalizeRolePermissions(props.initial?.permission ?? {}) as PermissionState);
 const loading = ref(false);
 
 async function submit() {

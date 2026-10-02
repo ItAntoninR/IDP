@@ -15,13 +15,11 @@ const ACTION_LABELS: Record<string, Record<string, string>> = {
   ac: { create: "Créer", read: "Consulter", update: "Modifier", delete: "Supprimer" },
   connector: { create: "Créer / appairer", update: "Renommer", delete: "Révoquer" },
   datahub: {
-    access: "Accès",
-    export: "Export",
+    access: "Accès au Data hub",
     import: "Envoyer des imports",
     "import-read": "Consulter les imports",
-    admin: "Administration",
   },
-  app: { access: "Accès", admin: "Administration" },
+  app: { access: "Accès à l'App", admin: "Administration" },
 };
 
 export const actionLabel = (resource: string, action: string) => ACTION_LABELS[resource]?.[action] ?? action;

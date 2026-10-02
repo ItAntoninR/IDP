@@ -201,7 +201,7 @@ Les jetons d'accès sont des JWT signés en ES256.
 | `https://mondomaine.fr/org_id`          | L'**unique** organisation pour laquelle ce jeton agit, choisie par l'utilisateur pendant l'autorisation.                                                                                                                                                                                    |
 | `https://mondomaine.fr/org_name`        | Nom de cette organisation. Un changement de nom apparaît au prochain renouvellement du jeton.                                                                                                                                                                                               |
 | `https://mondomaine.fr/org_count`       | Nombre d'organisations de l'utilisateur qui donnent accès à **cette** application. Au-dessus de 1, l'application peut proposer de changer d'organisation.                                                                                                                                   |
-| `https://mondomaine.fr/access`          | Objet `{ "<orgId>": ["access", "export", ...] }` avec une seule entrée, l'organisation `org_id` : les permissions de l'utilisateur sur **cette** application dans cette organisation, après intersection des permissions de ses rôles avec les applications autorisées pour l'organisation. |
+| `https://mondomaine.fr/access`          | Objet `{ "<orgId>": ["access", "import", ...] }` avec une seule entrée, l'organisation `org_id` : les permissions de l'utilisateur sur **cette** application dans cette organisation, après intersection des permissions de ses rôles avec les applications autorisées pour l'organisation. |
 | `https://mondomaine.fr/impersonated_by` | Identifiant de l'administrateur. Présent uniquement pendant une impersonation.                                                                                                                                                                                                              |
 
 Exemple de contenu pour le Data hub :
@@ -221,7 +221,7 @@ Exemple de contenu pour le Data hub :
   "https://mondomaine.fr/org_name": "Acme",
   "https://mondomaine.fr/org_count": 1,
   "https://mondomaine.fr/access": {
-    "org_acme": ["access", "export", "admin"]
+    "org_acme": ["access", "import", "import-read"]
   }
 }
 ```
@@ -233,7 +233,7 @@ Garanties :
 - **Pas d'accès, pas de jeton** : si aucune organisation ne donne `access` à l'application demandée, l'endpoint de jeton répond `403 access_denied` et n'émet rien. C'est vrai aussi au renouvellement : retirer un membre, changer un rôle, réduire les applications autorisées d'une organisation ou suspendre un utilisateur prend effet en une durée de vie de jeton d'accès.
 - **Jetons machine à machine** (sans utilisateur) : aucun claim personnalisé, sauf pour les connecteurs (voir [Connecteurs](#connecteurs)).
 - **Sessions d'impersonation** : jamais de jeton de renouvellement.
-- Catalogue des permissions par application : `datahub: access, export, import, import-read, admin` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)).
+- Catalogue des permissions par application : `datahub: access, import, import-read` et `app: access, admin` ([shared/permissions.ts](shared/permissions.ts)). `access` ouvre ou refuse chaque application séparément : un rôle peut avoir accès à l'App sans avoir accès au Data hub. Une organisation n'apparaît dans le jeton d'une application que si l'utilisateur y a `access`, donc les autres actions de cette application en dépendent. L'éditeur de rôles coche `access` dès qu'une autre action de la même application est cochée et décoche les autres actions quand `access` est décoché ; le serveur ajoute `access` à l'enregistrement d'un rôle personnalisé. Les actions hors catalogue (par exemple un ancien `export`) sont ignorées dans les jetons et retirées à l'enregistrement.
 
 ## Connecteurs
 

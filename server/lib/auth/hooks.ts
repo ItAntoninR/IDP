@@ -1,4 +1,5 @@
 import { createAuthMiddleware } from "better-auth/api";
+import { normalizeRolePermissionsInBody } from "./role-permissions";
 import { enforceRoleCeiling, forbidCeilingEdits } from "./role-ceiling";
 import { stripOfflineAccessWhenImpersonating } from "./impersonation";
 import { markOrganizationSelected } from "./org-selection";
@@ -18,7 +19,7 @@ export const beforeHook = createAuthMiddleware(async (ctx) => {
   requirePasskeyUserVerification(ctx);
   requireResourceForMachineTokens(ctx);
 
-  return stripOfflineAccessWhenImpersonating(ctx);
+  return normalizeRolePermissionsInBody(ctx) ?? (await stripOfflineAccessWhenImpersonating(ctx));
 });
 
 export const afterHook = createAuthMiddleware(async (ctx) => {

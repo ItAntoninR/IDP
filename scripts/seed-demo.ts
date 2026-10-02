@@ -105,7 +105,7 @@ const globexOwner = await ensureUser("globex@demo.test", "Gina Globex");
 const acme = await ensureOrg("acme", "Acme", ["datahub", "app"]);
 const globex = await ensureOrg("globex", "Globex", ["datahub"]);
 
-await ensureRole(acme, "analyst", { datahub: ["access", "export"] });
+await ensureRole(acme, "analyst", { datahub: ["access", "import-read"] });
 await ensureMember(acme, owner, "owner");
 await ensureMember(acme, analyst, "analyst");
 await ensureMember(globex, globexOwner, "owner");
@@ -117,7 +117,7 @@ Demo data ready (password for every account: ${PASSWORD})
 
   admin@demo.test     global admin (local demo only — production admins sign in through Authentik)
   owner@demo.test     owner of Acme (Data hub + App)
-  analyst@demo.test   "analyst" in Acme (Data hub access + export), member of Globex
+  analyst@demo.test   "analyst" in Acme (Data hub access + import-read), member of Globex
   globex@demo.test    owner of Globex (Data hub)
 
 Pending invitation: ${env.AUTH_BASE_URL}/invite/${invitationId}?email=invitee@demo.test

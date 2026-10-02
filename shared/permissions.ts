@@ -1,7 +1,7 @@
 import { createAccessControl } from "better-auth/plugins/access";
 
 export const APP_PERMISSIONS = {
-  datahub: ["access", "export", "import", "import-read", "admin"],
+  datahub: ["access", "import", "import-read"],
   app: ["access", "admin"],
 } as const;
 
@@ -35,7 +35,7 @@ export const owner = ac.newRole({
   invitation: ["create", "cancel"],
   ac: ["create", "read", "update", "delete"],
   connector: ["create", "update", "delete"],
-  datahub: ["access", "export", "import", "import-read", "admin"],
+  datahub: ["access", "import", "import-read"],
   app: ["access", "admin"],
 });
 
@@ -49,11 +49,30 @@ export const STATIC_ROLES = Object.keys(roles) as (keyof typeof roles)[];
 
 export const CONNECTOR_APP: AppId = "datahub";
 
+export const MANDATORY_ACTION = "access";
+
 export const CONNECTOR_ACTION = "import";
 
 export type PermissionMap = Partial<Record<string, string[]>>;
 
 export const isAppId = (value: string): value is AppId => value in APP_PERMISSIONS;
+
+export function normalizeRolePermissions(perms: PermissionMap): PermissionMap {
+  const out: PermissionMap = {};
+
+  for (const [resource, actions] of Object.entries(perms)) {
+    if (!isAppId(resource)) {
+      out[resource] = actions;
+      continue;
+    }
+
+    const known = APP_PERMISSIONS[resource].filter((action) => actions?.includes(action));
+
+    if (known.length) out[resource] = known.includes(MANDATORY_ACTION) ? known : [MANDATORY_ACTION, ...known];
+  }
+
+  return out;
+}
 
 export function clampToCeiling(perms: PermissionMap, allowedApps: readonly string[]): PermissionMap {
   const out: PermissionMap = {};

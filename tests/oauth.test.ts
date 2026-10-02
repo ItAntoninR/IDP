@@ -72,7 +72,7 @@ describe("access tokens", () => {
 
     expect(payload.aud).toContain(DATAHUB);
     expect(payload.aud).not.toContain(APP);
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "import-read", "admin"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import", "import-read"] });
     expect(payload[IMPERSONATED_BY_CLAIM]).toBeUndefined();
     expect(payload.exp! - payload.iat!).toBe(600);
   });
@@ -149,13 +149,13 @@ describe("access tokens", () => {
 
     await owner
       .post("/api/auth/organization/create-role")
-      .send({ organizationId, role: "analyst", permission: { datahub: ["access", "export"], app: ["access"] } })
+      .send({ organizationId, role: "analyst", permission: { datahub: ["access", "import-read"], app: ["access"] } })
       .expect(200);
     const analyst = await inviteAndJoin(owner, organizationId, "analyst");
 
     let payload = decodeJwt((await getAccessToken(analyst.agent, clients.datahub)).body.access_token);
 
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import-read"] });
 
     await adminAgent
       .patch(`/api/admin/organizations/${organizationId}`)
@@ -163,7 +163,7 @@ describe("access tokens", () => {
       .expect(200);
 
     payload = decodeJwt((await getAccessToken(analyst.agent, clients.datahub)).body.access_token);
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import-read"] });
 
     const denied = await authorize(analyst.agent, clients.app);
 
@@ -192,6 +192,24 @@ describe("access tokens", () => {
     const viewer = await inviteAndJoin(owner, organizationId, "import-viewer");
 
     const payload = decodeJwt((await getAccessToken(viewer.agent, clients.datahub)).body.access_token);
+
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import-read"] });
+  });
+
+  it("ignores legacy actions stored in a custom role", async () => {
+    const clients = await seedTestClients();
+    const { owner, organizationId } = await setupOrgWithOwner(["datahub"]);
+
+    await db.insert(schema.organizationRole).values({
+      id: "legacy-role",
+      organizationId,
+      role: "legacy",
+      permission: JSON.stringify({ datahub: ["access", "export", "admin", "import-read"] }),
+      createdAt: new Date(),
+    });
+    const legacy = await inviteAndJoin(owner, organizationId, "legacy");
+
+    const payload = decodeJwt((await getAccessToken(legacy.agent, clients.datahub)).body.access_token);
 
     expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import-read"] });
   });
@@ -333,7 +351,7 @@ describe("access tokens", () => {
     });
 
     expect(claims[ACCESS_CLAIM]).toEqual({
-      [orgB.organizationId]: ["access", "export", "import", "import-read", "admin"],
+      [orgB.organizationId]: ["access", "import", "import-read"],
     });
   });
 
@@ -350,7 +368,7 @@ describe("access tokens", () => {
     expect(refreshed.status, JSON.stringify(refreshed.body)).toBe(200);
     const payload = await verifyJwt(refreshed.body.access_token, DATAHUB);
 
-    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "export", "import", "import-read", "admin"] });
+    expect(payload[ACCESS_CLAIM]).toEqual({ [organizationId]: ["access", "import", "import-read"] });
   });
 
   it("publishes OIDC discovery with the configured issuer", async () => {

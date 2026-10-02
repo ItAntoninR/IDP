@@ -218,7 +218,7 @@ describe("dynamic roles", () => {
     const res = await owner.post("/api/auth/organization/create-role").send({
       organizationId,
       role: "analyst",
-      permission: { datahub: ["access", "export"] },
+      permission: { datahub: ["access", "import-read"] },
     });
 
     expect(res.status).toBe(200);
@@ -237,7 +237,51 @@ describe("dynamic roles", () => {
         and(eq(schema.organizationRole.organizationId, organizationId), eq(schema.organizationRole.role, "analyst")),
       );
 
-    expect(JSON.parse(roles[0]!.permission)).toEqual({ datahub: ["access", "export"] });
+    expect(JSON.parse(roles[0]!.permission)).toEqual({ datahub: ["access", "import-read"] });
+  });
+
+  it("adds the mandatory access action when a role is saved without it", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner(["datahub"]);
+    const savedPermission = async () => {
+      const [row] = await db
+        .select()
+        .from(schema.organizationRole)
+        .where(
+          and(eq(schema.organizationRole.organizationId, organizationId), eq(schema.organizationRole.role, "reader")),
+        );
+
+      return JSON.parse(row!.permission);
+    };
+
+    await owner
+      .post("/api/auth/organization/create-role")
+      .send({ organizationId, role: "reader", permission: { datahub: ["import-read"] } })
+      .expect(200);
+    expect(await savedPermission()).toEqual({ datahub: ["access", "import-read"] });
+
+    await owner
+      .post("/api/auth/organization/update-role")
+      .send({ organizationId, roleName: "reader", data: { permission: { datahub: ["import"] } } })
+      .expect(200);
+    expect(await savedPermission()).toEqual({ datahub: ["access", "import"] });
+  });
+
+  it("drops actions that are not in the catalogue when a role is saved", async () => {
+    const { owner, organizationId } = await setupOrgWithOwner(["datahub"]);
+
+    await owner
+      .post("/api/auth/organization/create-role")
+      .send({ organizationId, role: "legacy", permission: { datahub: ["access", "export", "import"] } })
+      .expect(200);
+
+    const [row] = await db
+      .select()
+      .from(schema.organizationRole)
+      .where(
+        and(eq(schema.organizationRole.organizationId, organizationId), eq(schema.organizationRole.role, "legacy")),
+      );
+
+    expect(JSON.parse(row!.permission)).toEqual({ datahub: ["access", "import"] });
   });
 
   it("rejects a role granting permissions outside the ceiling", async () => {
